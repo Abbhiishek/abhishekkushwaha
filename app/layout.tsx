@@ -1,4 +1,8 @@
+import NavbarLayout from '@/components/NavbarLayout';
+import { Noise } from '@/components/ui/noise';
+import { cn } from '@/utils/cn';
 import type { Metadata } from 'next';
+import { ThemeProvider } from "next-themes";
 import { Inter } from 'next/font/google';
 import './globals.css';
 
@@ -19,7 +23,7 @@ export const metadata: Metadata = {
     absolute: `${name} | 💻`,
     template: `%s | ${name}`,
   },
-  description: description,
+  description,
   keywords: [
     'Abhishek Kushwaha',
     'Abhishek',
@@ -61,6 +65,7 @@ export const metadata: Metadata = {
     description,
     type: 'website',
     locale: 'en_US',
+    emails: ['abhishekkushwaha1479@gmail.com'],
     url: 'https://abhishekkushwaha.me',
     images: [
       {
@@ -96,7 +101,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={cn(`relative overflow-hidden dark:bg-brand-dark`, inter.className)}>
+        <ThemeProvider attribute="class">
+          <Noise />
+          <NavbarLayout>
+
+            {children}
+          </NavbarLayout>
+        </ThemeProvider >
+      </body>
     </html>
   );
 }

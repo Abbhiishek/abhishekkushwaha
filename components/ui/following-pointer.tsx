@@ -1,5 +1,5 @@
 // Core component that receives mouse positions and renders pointer and content
-
+"use client";
 import React, { useEffect, useState } from "react";
 
 import { cn } from "@/utils/cn";
@@ -128,10 +128,10 @@ export const FollowPointer = ({
                     opacity: 0,
                 }}
                 className={
-                    "px-2 py-2 bg-neutral-200 text-white whitespace-nowrap min-w-max text-xs rounded-full"
+                    "px-2 py-2 bg-neutral-200 text-white whitespace-nowrap min-w-max text-xs lg:text-base rounded-full"
                 }
             >
-                {title || `William Shakespeare`}
+                {title || `Abhishek Kushwaha`}
             </motion.div>
         </motion.div>
     );
