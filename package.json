@@ -14,6 +14,8 @@
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
     "@tabler/icons-react": "^3.5.0",
+    "@types/showdown": "^2.0.6",
+    "axios": "^1.7.2",
     "clsx": "^2.1.1",
     "framer-motion": "^11.2.6",
     "kbar": "^0.1.0-beta.45",
@@ -23,6 +25,8 @@
     "react": "^18",
     "react-dom": "^18",
     "react-icons": "^5.2.1",
+    "showdown": "^2.1.0",
+    "swr": "^2.2.5",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {

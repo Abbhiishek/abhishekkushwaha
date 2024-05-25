@@ -1,5 +1,5 @@
 
-import { Bookmark, BookOpen, Clock, Code, Headphones, Home, Paperclip, User, Zap } from "lucide-react";
+import { Bookmark, Code, Home, Paperclip, User } from "lucide-react";
 
 
 export const NavbarItems = [
@@ -10,42 +10,22 @@ export const NavbarItems = [
     },
     {
         name: "About",
-        slug: "/👀",
+        slug: "/about",
         icon: User,
     },
     {
-        name: "Now",
-        slug: "/⌛",
-        icon: Clock,
-    },
-    {
         name: "Links",
-        slug: "/🔗",
+        slug: "/links",
         icon: Paperclip,
     },
     {
-        name: "Guestbook",
-        slug: "/🪴",
-        icon: BookOpen,
-    },
-    {
-        name: "Spotify",
-        slug: "/🎧",
-        icon: Headphones,
-    },
-    {
-        name: "Dashboard",
-        slug: "/🔮",
-        icon: Zap,
-    },
-    {
         name: "Blogs",
-        slug: "/🔖",
+        slug: "/blog",
         icon: Bookmark,
     },
     {
         name: "Projects",
-        slug: "/🔥",
+        slug: "/project",
         icon: Code,
     },
 ];
