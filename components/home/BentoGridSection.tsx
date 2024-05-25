@@ -30,7 +30,7 @@ function BentoGridHeroSection() {
             </div>
             <div
                 className="col-span-2 row-span-2 col-start-11 rounded-full ring-neutrals-10 ring-4">
-                <Link href={"/👀"} className=" flex justify-center items-center h-full">
+                <Link href={"/about"} className=" flex justify-center items-center h-full">
                     <FollowerPointerCard
                         className="flex justify-center items-center h-full"
                         title={
@@ -43,7 +43,7 @@ function BentoGridHeroSection() {
             </div>
 
             <div className="col-span-3 row-span-3 col-start-6  row-start-3 rounded-3xl ring-neutrals-11 ring-4">
-                <Link href={"/🔥"} className=" flex justify-center items-center h-full">
+                <Link href={"/project"} className=" flex justify-center items-center h-full">
                     <FollowerPointerCard
                         className="flex justify-center items-center h-full"
                         title={
@@ -59,7 +59,7 @@ function BentoGridHeroSection() {
 
             <div className="col-span-4 row-span-3 col-start-9 row-start-3 flex justify-center items-center rounded-3xl ring-neutrals-11 ring-4">
 
-                <Link href={"/🔖"} className=" flex justify-center items-center h-full">
+                <Link href={"/blog"} className=" flex justify-center items-center h-full">
                     <FollowerPointerCard
                         className="flex justify-center items-center h-full"
                         title={
