@@ -1,5 +1,6 @@
 import { getBlogs } from "@/lib/blogs";
 import { Blog } from "@/lib/types";
+import Image from "next/image";
 import { FiArrowRight, FiHeart, FiMessageCircle } from "react-icons/fi";
 
 export default async function Blogs() {
@@ -22,10 +23,12 @@ export default async function Blogs() {
                         href={`${post.url}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="bg-gradient-to-r from-zinc-500 to-stone-500 w-full p-1 rounded-lg shadow-lg dark:shadow-zinc-200/10 shadow-zinc-800/10 hover:shadow-xl hover:scale-[103%] dark:hover:shadow-zinc-200/10 hover:shadow-zinc-800/10 duration-300"
+                        className="bg-gradient-to-br from-zinc-500 to-stone-900 w-full p-1 rounded-lg shadow-lg dark:shadow-zinc-200/10 shadow-zinc-800/10 hover:shadow-xl hover:scale-[103%] dark:hover:shadow-zinc-200/10 hover:shadow-zinc-800/10 duration-300"
                     >
                         <div className="flex flex-col cursor-pointer justify-between gap-4 p-4 dark:bg-zinc-800 bg-zinc-200 rounded-lg h-full">
                             <div>
+                                <Image src={post.cover_image} alt={post.title} width={500} height={300} className="rounded" />
+                                <br />
                                 <h3 className="dark:text-zinc-300 text-zinc-800 mb-6 text-lg font-semibold w-full tracking-tight m-0 no-underline">
                                     {post.title}
                                 </h3>

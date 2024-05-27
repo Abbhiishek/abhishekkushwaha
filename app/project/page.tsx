@@ -1,5 +1,88 @@
 import ProjectsWobbleCard from "@/components/ProjectsWobbleCard"
-import { projects } from "@/lib/project"
+// import { projects } from "@/lib/project"
+import { Metadata } from "next"
+
+
+export const metadata: Metadata = {
+    title: "Projects",
+    description: "All my projects and repositories.",
+    keywords: "projects, repositories, open-source, github",
+}
+
+const projects = [
+    {
+        title: "DevResume.",
+        description: "Craft your developer Portfolio within Few Seconds.",
+        image: "/devresume.png",
+        gridSpan: "col-span-1 lg:col-span-2",
+        backgroundColor: "bg-green-800/20 hover:bg-green-800/40",
+        imageposition: "-right-4 lg:-right-[20%] -bottom-4 lg:-bottom-[20%]",
+        url: "https://github.com/Abbhiishek/dresume",
+    },
+    {
+        title: "Wiidgets",
+        description: "Only Api endpoint you need for GitHub widgets",
+        image: "/wiidgets.png",
+        gridSpan: "col-span-1",
+        backgroundColor: "bg-violet-900/20 hover:bg-violet-900/40",
+        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        url: "https://github.com/Abbhiishek/codecommunitymusic",
+    },
+    {
+        title: "Code Community Music",
+        description: "CodeCommunityMusic is a community of developers and musicians who are passionate about music and code.",
+        image: "/ccm.png",
+        gridSpan: "col-span-1 lg:col-span-3",
+        backgroundColor: "bg-blue-900/20 hover:bg-blue-900/40",
+        imageposition: "-right-4 lg:-right-[10%] -bottom-4 lg:-bottom-[5%]",
+        url: "https://github.com/Abbhiishek/Widgets",
+    },
+    {
+        title: "Todoska",
+        description: "Todoska is a simple Cli Todo-Tracker.",
+        image: "/todoska.gif",
+        gridSpan: "col-span-1 lg:col-span-2",
+        backgroundColor: "bg-yellow-900/20 hover:bg-yellow-900/40",
+        imageposition: "-right-4 lg:-right-[10%] -bottom-4 lg:-bottom-[35%]",
+        url: "https://github.com/Abbhiishek/Todoska",
+    },
+    {
+        title: "Bashy",
+        description: "Bashy is a url shortener on steroids 💪.",
+        image: "/bashy.png",
+        gridSpan: "col-span-1",
+        backgroundColor: "bg-cyan-900/20 hover:bg-cyan-900/40",
+        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        url: "https://github.com/Abbhiishek/Bashy",
+    },
+    {
+        title: "Code.sh",
+        description: "Code.sh is a simple and easy to use code sharing platform.",
+        image: "/bashy.png",
+        gridSpan: "col-span-1 lg:col-span-1",
+        backgroundColor: "bg-indigo-900/20 hover:bg-indigo-900/40",
+        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        url: "https://github.com/Abbhiishek/codesh",
+    },
+    {
+        title: "Atom",
+        description: "Event hosting platform for developers and tech enthusiasts.",
+        image: "/bashy.png",
+        gridSpan: "col-span-1 lg:col-span-2",
+        backgroundColor: "bg-sky-900/20 hover:bg-sky-900/40",
+        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        url: "https://github.com/Abbhiishek/Bashy",
+    },
+    {
+        title: "Raise",
+        description: "Raise is a one to one platform for startup founders to raise funds without any hassle.",
+        image: "/bashy.png",
+        gridSpan: "col-span-3",
+        backgroundColor: "bg-yellow-900/20 hover:bg-yellow-900/40",
+        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        url: "https://github.com/Abbhiishek/Raise",
+    },
+]
 
 function ProjectPage() {
     return (
