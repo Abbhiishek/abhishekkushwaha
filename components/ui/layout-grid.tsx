@@ -28,9 +28,9 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
     };
 
     return (
-        <div className="w-full h-full p-10 grid grid-cols-1 md:grid-cols-3  max-w-7xl mx-auto gap-4 relative">
+        <div className="w-full h-full p-10 grid grid-cols-1 md:grid-cols-3 md:grid-rows-3  max-w-7xl mx-auto gap-4 relative">
             {cards.map((card, i) => (
-                <div key={i} className={cn(card.className, "")}>
+                <div key={i} className={cn(card.className, "h-60")}>
                     <motion.div
                         onClick={() => handleClick(card)}
                         className={cn(
@@ -52,7 +52,7 @@ export const LayoutGrid = ({ cards }: { cards: Card[] }) => {
             <motion.div
                 onClick={handleOutsideClick}
                 className={cn(
-                    "absolute h-full w-full left-0 top-0 bg-black opacity-0 z-10",
+                    "absolute h-full w-full left-0 top-0  opacity-0 z-10",
                     selected?.id ? "pointer-events-auto" : "pointer-events-none"
                 )}
                 animate={{ opacity: selected?.id ? 0.3 : 0 }}
@@ -66,8 +66,8 @@ const BlurImage = ({ card }: { card: Card }) => {
     return (
         <Image
             src={card.thumbnail}
-            height="500"
-            width="500"
+            height="1000"
+            width="1000"
             onLoad={() => setLoaded(true)}
             className={cn(
                 "object-cover object-top absolute inset-0 h-full w-full transition duration-200",
@@ -88,7 +88,7 @@ const SelectedCard = ({ selected }: { selected: Card | null }) => {
                 animate={{
                     opacity: 0.6,
                 }}
-                className="absolute inset-0 h-full w-full bg-black opacity-60 z-10"
+                className="absolute inset-0 h-full bg-neutral-800 w-full  opacity-0 z-10"
             />
             <motion.div
                 initial={{

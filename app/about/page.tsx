@@ -18,25 +18,36 @@ const pics = [
         id: 1,
         className: "md:col-span-2",
         thumbnail:
-            "/about1/png",
-    },
-    {
-        id: 2,
-        className: "col-span-1",
-        thumbnail:
-            "/about2/png",
+            "/about1.jpg",
+        content: "@Cloud community days 2023, Kolkata",
     },
     {
         id: 3,
         className: "col-span-1",
         thumbnail:
-            "/about3/png",
+            "/about3.jpg",
+        content: "@Google Developer Student Club Graduation Ceremony 2023, Bangalore",
     },
     {
         id: 4,
         className: "md:col-span-2",
         thumbnail:
-            "/about4/png",
+            "/about4.jpg",
+        content: "@Jis University, Kolkata (Hosting a workshop on Cloud Computing)",
+    },
+    {
+        id: 5,
+        className: "md:col-span-1",
+        thumbnail:
+            "/about5.jpg",
+        content: "somewhere in kolkata, 2022",
+    },
+    {
+        id: 6,
+        className: "md:col-span-2",
+        thumbnail:
+            "/about6.jpg",
+        content: "with the coolest senior and mentor i could ever have💪",
     },
 ];
 
@@ -53,7 +64,7 @@ export default async function About() {
                     dangerouslySetInnerHTML={{ __html: about.html }}
                 />
             </section>
-            <div className="h-[700px] w-full">
+            <div className=" w-full mb-10">
                 <LayoutGrid cards={pics} />
             </div>
         </div>
