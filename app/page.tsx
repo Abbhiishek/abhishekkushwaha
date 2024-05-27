@@ -15,7 +15,7 @@ const aclonica = Aclonica({
 
 export default function Home() {
   return (
-    <main className='grid place-content-start min-h-screen mt-10'>
+    <main className='grid place-content-start mt-10'>
       <BentoGridHeroSection />
     </main >
   );

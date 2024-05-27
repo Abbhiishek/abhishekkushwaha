@@ -14,7 +14,7 @@ function NavbarLayout({ children }: { children: React.ReactNode }) {
         <KBarProvider actions={actions}>
             <main className="flex selection:bg-neutrals-12 flex-col overflow-x-hidden min-h-screen items-center max-h-auto relative">
                 <Palette />
-                <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
+                <div className="flex w-full h-full lg:w-[70%] md:w-2/3 ">
                     <div className="w-[6%] fixed left-0 h-full z-50 hidden lg:block md:block">
                         <NavBar path={currentRoute} />
                     </div>

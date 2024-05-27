@@ -37,7 +37,7 @@ function BentoGridHeroSection() {
                             <p>Know about me </p>
                         }
                     >
-                        <LogoHighlight />
+                        <LogoHighlight src="/boy-with-laptop.png" />
                     </FollowerPointerCard>
                 </Link>
             </div>
@@ -50,9 +50,7 @@ function BentoGridHeroSection() {
                             <p>check out projects</p>
                         }
                     >
-                        <div className="flex text-center flex-col text-9xl">
-                            🔥
-                        </div>
+                        <LogoHighlight src="/fire.png" />
                     </FollowerPointerCard>
                 </Link>
             </div>

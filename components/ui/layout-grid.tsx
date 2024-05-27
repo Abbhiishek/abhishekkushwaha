@@ -8,7 +8,7 @@ import React, { useState } from "react";
 
 type Card = {
     id: number;
-    content: JSX.Element | React.ReactNode | string;
+    content?: JSX.Element | React.ReactNode | string;
     className: string;
     thumbnail: string;
 };

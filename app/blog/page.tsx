@@ -1,6 +1,6 @@
 import { getBlogs } from "@/lib/blogs";
 import { Blog } from "@/lib/types";
-import { FiArrowRight, FiHeart } from "react-icons/fi";
+import { FiArrowRight, FiHeart, FiMessageCircle } from "react-icons/fi";
 
 export default async function Blogs() {
 
@@ -8,14 +8,14 @@ export default async function Blogs() {
 
 
     return (
-        <div className="flex container flex-col w-full gap-6 mb-20 prose prose-a:no-underline mt-28 lg:mt-10">
+        <div className="flex w flex-col gap-6 mb-20 mt-28 lg:mt-10">
             <h2
                 className="dark:text-zinc-200 text-zinc-900 text-[2.5rem] font-extrabold leading-none m-0"
                 id="blogs"
             >
                 Recent Blogs
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 w-full gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3  md:grid-cols-2 w-full gap-6">
                 {latestPosts.map((post: Blog) => (
                     <a
                         key={post.slug}
@@ -29,14 +29,19 @@ export default async function Blogs() {
                                 <h3 className="dark:text-zinc-300 text-zinc-800 mb-6 text-lg font-semibold w-full tracking-tight m-0 no-underline">
                                     {post.title}
                                 </h3>
-
-                                <p className="dark:text-zinc-400 text-zinc-700 m-0 text-base">
-                                    Read More
-                                </p>
+                                <h6 className="dark:text-zinc-400 text-zinc-700 m-0 text-base">
+                                    {post.description}
+                                </h6>
                             </div>
-                            <div className="flex dark:text-zinc-400 text-zinc-700 gap-2 text-base items-center font-semibold">
-                                <FiHeart />
-                                <p className="m-0">{post.public_reactions_count}</p>
+                            <div className="flex flex-row gap-3">
+                                <div className="flex dark:text-zinc-400 text-zinc-700 gap-2 text-base items-center font-semibold">
+                                    <FiHeart />
+                                    <p className="m-0">{post.public_reactions_count}</p>
+                                </div>
+                                <div className="flex dark:text-zinc-400 text-zinc-700 gap-2 text-base items-center font-semibold">
+                                    <FiMessageCircle />
+                                    <p className="m-0">{post.comments_count}</p>
+                                </div>
                             </div>
                         </div>
                     </a>

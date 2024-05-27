@@ -64,9 +64,31 @@ const config: Config = {
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
+      fontFamily: {
+        clash: ["Satoshi", "sans-serif"],
+        acme: ["Acme", "sans-serif"],
+        adlam: ["ADLaM Display", "sans-serif"],
+        aclonica: ["Aclonica", "sans-serif"],
+      },
+      typography: (theme: any) => ({
+        DEFAULT: {
+          css: {
+            "code::before": {
+              content: "",
+            },
+            "code::after": {
+              content: "",
+            },
+          },
+        },
+      }),
     },
   },
-  plugins: [addVariablesForColors],
+  plugins: [
+    addVariablesForColors,
+    require("@tailwindcss/typography"),
+    require("tailwind-scrollbar")({ nocompatible: true }),
+  ],
 };
 
 

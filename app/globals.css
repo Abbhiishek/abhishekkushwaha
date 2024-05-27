@@ -1,3 +1,9 @@
+@import url(https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,301,300,400&display=swap);
+@import url('https://fonts.googleapis.com/css2?family=Acme&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Acme&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Aclonica&family=Acme&display=swap');
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,15 +21,17 @@
     body,
     html,
     .kbar {
+      @apply scrollbar-thin scrollbar-thumb-rounded-lg scrollbar-track-transparent dark:scrollbar-thumb-zinc-800 scrollbar-thumb-zinc-500;
       scroll-behavior: smooth;
       overflow-x: hidden;
       margin: 0 !important;
     }
-}
+  }
   
-.ball-transitions {
+  .ball-transitions {
     transition: opacity 0.2s, transform 0.1s;
-}
+  }
+  
 
 .project-count{
     background: linear-gradient(187deg, #FFF 3.83%, #2B3447 59.49%, #0B162C 93.6%);
