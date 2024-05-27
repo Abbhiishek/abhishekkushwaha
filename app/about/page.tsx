@@ -52,7 +52,7 @@ export default async function About() {
 
 
 
-export async function getData() {
+async function getData() {
     const markdown = fs.readFileSync('./content/about.md', 'utf8');
     const converter = new showdown.Converter({ metadata: true });
     const html = converter.makeHtml(markdown);
