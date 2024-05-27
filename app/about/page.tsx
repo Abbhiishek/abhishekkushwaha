@@ -1,6 +1,17 @@
 import { LayoutGrid } from "@/components/ui/layout-grid";
 import fs from 'fs';
+import { Metadata } from "next";
 import showdown from "showdown";
+
+
+
+export const metadata: Metadata = {
+    title: "About 👀",
+    description: "All about me.",
+    keywords: "about, abhishek kushwaha, abbhiishek, abbhiishek.dev, abbhiishek.github.io, abbhiishek.com, abbhiishek.dev/about, abbhiishek.github.io/about, abbhiishek.com/about",
+}
+
+
 
 const pics = [
     {

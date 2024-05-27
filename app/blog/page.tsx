@@ -1,13 +1,20 @@
 import { getBlogs } from "@/lib/blogs";
 import { Blog } from "@/lib/types";
+import { Metadata } from "next";
 import Image from "next/image";
 import { FiArrowRight, FiHeart, FiMessageCircle } from "react-icons/fi";
 
+
+export const metadata: Metadata = {
+    title: "Blog",
+    description: "All my recent blogs and articles.",
+    keywords: "blogs, articles, dev.to, abbhiishek, abhishek kushwaha, abhishek kushwaha blogs, abhishek kushwaha articles, abhishek kushwaha dev.to, abhishek kushwaha dev.to blogs, abhishek kushwaha dev.to",
+}
+
+
+
 export default async function Blogs() {
-
     const latestPosts = await getBlogs();
-
-
     return (
         <div className="flex w flex-col gap-6 mb-20 mt-28 lg:mt-10">
             <h2
