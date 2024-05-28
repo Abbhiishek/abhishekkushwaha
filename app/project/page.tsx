@@ -14,7 +14,7 @@ const projects = [
         title: "DevResume.",
         description: "Craft your developer Portfolio within Few Seconds.",
         image: "/devresume.png",
-        gridSpan: "col-span-1 lg:col-span-2",
+        gridSpan: "col-span-3 lg:col-span-2",
         backgroundColor: "bg-green-800/20 hover:bg-green-800/40",
         imageposition: "-right-4 lg:-right-[20%] -bottom-4 lg:-bottom-[20%]",
         url: "https://github.com/Abbhiishek/dresume",
@@ -23,16 +23,16 @@ const projects = [
         title: "Wiidgets",
         description: "Only Api endpoint you need for GitHub widgets",
         image: "/wiidgets.png",
-        gridSpan: "col-span-1",
+        gridSpan: "col-span-3 lg:col-span-1",
         backgroundColor: "bg-violet-900/20 hover:bg-violet-900/40",
-        imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
+        imageposition: "-left-4 lg:-left-[30%] -bottom-4 lg:-bottom-[10%]",
         url: "https://github.com/Abbhiishek/codecommunitymusic",
     },
     {
         title: "Code Community Music",
         description: "CodeCommunityMusic is a community of developers and musicians who are passionate about music and code.",
         image: "/ccm.png",
-        gridSpan: "col-span-1 lg:col-span-3",
+        gridSpan: "col-span-3",
         backgroundColor: "bg-blue-900/20 hover:bg-blue-900/40",
         imageposition: "-right-4 lg:-right-[10%] -bottom-4 lg:-bottom-[5%]",
         url: "https://github.com/Abbhiishek/Widgets",
@@ -41,8 +41,8 @@ const projects = [
         title: "Todoska",
         description: "Todoska is a simple Cli Todo-Tracker.",
         image: "/todoska.gif",
-        gridSpan: "col-span-1 lg:col-span-2",
-        backgroundColor: "bg-yellow-900/20 hover:bg-yellow-900/40",
+        gridSpan: "col-span-3 lg:col-span-2",
+        backgroundColor: "bg-yellow-900/60 dark:bg-yellow-900/20 hover:bg-yellow-900/70 dark:hover:bg-yellow-900/40",
         imageposition: "-right-4 lg:-right-[10%] -bottom-4 lg:-bottom-[35%]",
         url: "https://github.com/Abbhiishek/Todoska",
     },
@@ -50,7 +50,7 @@ const projects = [
         title: "Bashy",
         description: "Bashy is a url shortener on steroids 💪.",
         image: "/bashy.png",
-        gridSpan: "col-span-1",
+        gridSpan: "col-span-3 lg:col-span-1",
         backgroundColor: "bg-cyan-900/20 hover:bg-cyan-900/40",
         imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
         url: "https://github.com/Abbhiishek/Bashy",
@@ -59,7 +59,7 @@ const projects = [
         title: "Code.sh",
         description: "Code.sh is a simple and easy to use code sharing platform.",
         image: "/bashy.png",
-        gridSpan: "col-span-1 lg:col-span-1",
+        gridSpan: "col-span-3 lg:col-span-1",
         backgroundColor: "bg-indigo-900/20 hover:bg-indigo-900/40",
         imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
         url: "https://github.com/Abbhiishek/codesh",
@@ -68,7 +68,7 @@ const projects = [
         title: "Atom",
         description: "Event hosting platform for developers and tech enthusiasts.",
         image: "/bashy.png",
-        gridSpan: "col-span-1 lg:col-span-2",
+        gridSpan: "col-span-3 lg:col-span-2",
         backgroundColor: "bg-sky-900/20 hover:bg-sky-900/40",
         imageposition: "-right-4 lg:-right-[30%] -bottom-4 lg:-bottom-[10%]",
         url: "https://github.com/Abbhiishek/Bashy",
@@ -91,10 +91,13 @@ function ProjectPage() {
                 <div>
                     <h1 className="dark:text-zinc-200 text-zinc-900 leading-none mb-3 text-6xl font-adlam">Projects</h1>
                     <p className="dark:text-zinc-400 text-zinc-800 m-0 leading-tight">
-                        All my projects and repositories.
+                        Projects I&rsquo;ve worked on, or currently working on.
+                        (Most of them are open-source, feel free to contribute! 🚀)
+                        <br />
+                        Dumbest ideas are the best ideas. 🤪
                     </p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-7xl mx-auto w-full">
+                <div className="grid grid-cols-3 gap-4 max-w-7xl mx-auto w-full">
                     {projects.map((project, index) => (
                         <ProjectsWobbleCard
                             key={index}

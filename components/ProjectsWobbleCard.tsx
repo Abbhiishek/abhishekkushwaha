@@ -15,16 +15,16 @@ interface ProjectsWobbleCardProps {
 
 function ProjectsWobbleCard({ url, title, description, image, gridSpan, backgroundColor, imageposition }: ProjectsWobbleCardProps) {
     return (
-        <Link href={url} className={cn(`h-full col-span-3  min-h-[500px] lg:min-h-[300px] group`, gridSpan)}>
+        <Link href={url} className={cn(``, gridSpan)}>
             <WobbleCard
-                containerClassName={cn(`h-full  min-h-[500px] lg:min-h-[300px] group`, gridSpan, backgroundColor)}
+                containerClassName={cn(`h-full min-h-[400px] lg:min-h-[300px] group`, backgroundColor)}
                 className=""
             >
                 <div className="max-w-xs">
-                    <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] dark:text-white font-acme">
+                    <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] dark:text-white text-neutral-500 hover:text-neutrals-9 font-acme">
                         {title}
                     </h2>
-                    <p className="mt-4 text-left  text-base/6 dark:text-neutral-200 text-neutral-900 font-clash">
+                    <p className="mt-4 text-left  text-base/6 dark:text-neutral-200 text-neutral-500 font-clash font-semibold">
                         {description}
                     </p>
                 </div>

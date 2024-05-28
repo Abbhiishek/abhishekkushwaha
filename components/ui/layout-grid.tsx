@@ -103,7 +103,7 @@ const SelectedCard = ({ selected }: { selected: Card | null }) => {
                     duration: 0.3,
                     ease: "easeInOut",
                 }}
-                className="relative px-8 pb-4 z-[70]"
+                className="relative px-8 pb-4 z-[70] text-white font-aclonica"
             >
                 {selected?.content}
             </motion.div>

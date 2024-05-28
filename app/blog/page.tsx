@@ -17,12 +17,16 @@ export default async function Blogs() {
     const latestPosts = await getBlogs();
     return (
         <div className="flex w flex-col gap-6 mb-20 mt-28 lg:mt-10">
-            <h2
-                className="dark:text-zinc-200 text-zinc-900 text-[2.5rem] font-extrabold leading-none m-0"
-                id="blogs"
-            >
-                Recent Blogs
-            </h2>
+            <div>
+                <h1
+                    className="dark:text-zinc-200 text-zinc-900 leading-none mb-3 text-6xl font-adlam">
+                    Blogs & Snippets
+                </h1>
+                <p
+                    className="dark:text-zinc-400 text-zinc-800 m-0 leading-tight">
+                    I write about my experiences, learnings, and snippets on Dev.to. Here are some of my latest blogs and snippets.
+                </p>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-3  md:grid-cols-2 w-full gap-6">
                 {latestPosts.map((post: Blog) => (
                     <a

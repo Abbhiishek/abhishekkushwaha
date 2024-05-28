@@ -73,7 +73,7 @@ function BentoGridHeroSection() {
                 </Link>
             </div>
             <div
-                className={cn(`col-span-7 row-span-2 col-start-6 row-start-6 ring ring-neutrals-10 dark:bg-neutrals-12/40 bg-brand-dark flex justify-center items-center lg:text-5xl rounded-3xl text-white`, adlam_display.className)}>
+                className={cn(`col-span-7 row-span-2 col-start-6 row-start-6 ring ring-neutrals-10 dark:bg-neutrals-12/40 bg-brand-dark flex justify-center items-center lg:text-4xl rounded-3xl text-white`, adlam_display.className)}>
                 Abhishek Kushwaha
             </div>
 
