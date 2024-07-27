@@ -3,7 +3,7 @@ import axios from "axios";
 export async function getBlogs() {
     const res = await axios.get("https://dev.to/api/articles?username=abbhiishek");
 
-    const blogs = res.data.slice(0, 10);
+    const blogs = res.data.slice(0, 20);
 
     return blogs.map((blog: any) => {
         return {
