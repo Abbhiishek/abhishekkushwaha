@@ -1,5 +1,5 @@
 ---
-publish_date: 25 May, 2024
+publish_date: 27 July, 2024
 ---
 
 On a mission to build products developers love, and along the way, teach the next generation of developers. Here's a summary of my work so far.
@@ -15,6 +15,10 @@ On a mission to build products developers love, and along the way, teach the nex
 </p>
 <p>
     Since I joined Training Mug in 2023, I improved the performance of the dashboard by 50%, implemeted new ui components and improved the overall user experience. Improved the loading time and api calls by 90%.
+
+I developed an AI chat support system using Azure AI, integrating learner data and course content for personalized assistance. A progress tracking system that monitors daily tasks and aligns skills with student profiles. Additionally, an online IDE with a strict testcase evaluation system for playground projects. These improvements have boosted user engagement and learning outcomes on the platform.
+
+    
 </p>
 <hr className="my-6 border-neutral-100 dark:border-neutral-800" />
 <h2 className="font-medium text-xl mb-1 tracking-tighter">ForageForage</h2>
