@@ -18,7 +18,8 @@ export const FollowerPointerCard = ({
     const y = useMotionValue(0);
     const ref = React.useRef<HTMLDivElement>(null);
     const [rect, setRect] = useState<DOMRect | null>(null);
-    const [isInside, setIsInside] = useState<boolean>(false); // Add this line
+    const [isInside, setIsInside] = useState<boolean>(false);
+    const [pointerColor, setPointerColor] = useState("var(--sky-500)");
 
     useEffect(() => {
         if (ref.current) {
@@ -39,6 +40,7 @@ export const FollowerPointerCard = ({
     };
 
     const handleMouseEnter = () => {
+        setPointerColor(getRandomColor());
         setIsInside(true);
     };
     return (
@@ -53,31 +55,39 @@ export const FollowerPointerCard = ({
             className={cn("relative", className)}
         >
             <AnimatePresence>
-                {isInside && <FollowPointer x={x} y={y} title={title} />}
+                {isInside && <FollowPointer x={x} y={y} title={title} color={pointerColor} />}
             </AnimatePresence>
             {children}
         </div>
     );
 };
 
+const POINTER_COLORS = [
+    "var(--sky-500)",
+    "var(--neutral-500)",
+    "var(--teal-500)",
+    "var(--green-500)",
+    "var(--blue-500)",
+    "var(--red-500)",
+    "var(--yellow-500)",
+];
+
+function getRandomColor() {
+    return POINTER_COLORS[Math.floor(Math.random() * POINTER_COLORS.length)];
+}
+
 export const FollowPointer = ({
     x,
     y,
     title,
+    color,
 }: {
     x: any;
     y: any;
     title?: string | React.ReactNode;
+    color: string;
 }) => {
-    const colors = [
-        "var(--sky-500)",
-        "var(--neutral-500)",
-        "var(--teal-500)",
-        "var(--green-500)",
-        "var(--blue-500)",
-        "var(--red-500)",
-        "var(--yellow-500)",
-    ];
+    const randomColor = color;
     return (
         <motion.div
             className="h-4 w-4 rounded-full absolute z-50"
@@ -113,7 +123,7 @@ export const FollowPointer = ({
             </svg>
             <motion.div
                 style={{
-                    backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+                    backgroundColor: randomColor,
                 }}
                 initial={{
                     scale: 0.5,

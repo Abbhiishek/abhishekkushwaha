@@ -20,9 +20,8 @@ export default function NavBar({ path }: { path: string }) {
         false,
     ]);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
+    useEffect(() => { setMounted(true); }, []);
 
     // function handleThemeBtnCLick() {
     //   // console.log("ok")

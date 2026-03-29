@@ -13,6 +13,7 @@ export default function MobileNavBar({ path }: { path: string }) {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
     useEffect(() => setMounted(true), []);
 
     return (

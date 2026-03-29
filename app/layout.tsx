@@ -3,13 +3,7 @@ import { Noise } from '@/components/ui/noise';
 import { cn } from '@/utils/cn';
 import type { Metadata } from 'next';
 import { ThemeProvider } from "next-themes";
-import { Inter } from 'next/font/google';
 import './globals.css';
-
-const inter = Inter({
-  weight: '400',
-  subsets: ['cyrillic', 'latin', 'latin-ext']
-});
 
 
 const description =
@@ -101,7 +95,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={cn(`relative overflow-hidden dark:bg-brand-dark`, inter.className)}>
+      <body className={cn(`relative overflow-hidden dark:bg-brand-dark font-sans`)}>
         <ThemeProvider attribute="class">
           <Noise />
           <NavbarLayout>

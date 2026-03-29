@@ -65,6 +65,7 @@ const config: Config = {
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
       fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
         clash: ["Satoshi", "sans-serif"],
         acme: ["Acme", "sans-serif"],
         adlam: ["ADLaM Display", "sans-serif"],
