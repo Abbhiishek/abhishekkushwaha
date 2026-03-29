@@ -1,6 +1,5 @@
 
-import { Bookmark, BriefcaseBusiness, Code, Flame, GraduationCap, Home, MicVocal, Paperclip, User } from "lucide-react";
-
+import { BookOpen, BriefcaseBusiness, Code, Flame, Home, Library, MicVocal, Paperclip, PenLine, User } from "lucide-react";
 
 export const NavbarItems = [
     {
@@ -14,38 +13,38 @@ export const NavbarItems = [
         icon: User,
     },
     {
-        name: "Education",
-        slug: "/education",
-        icon: GraduationCap,
-    },
-    {
-        name: "Work",
-        slug: "/work",
-        icon: BriefcaseBusiness,
-    },
-    {
-        name: "Links",
-        slug: "/links",
-        icon: Paperclip,
+        name: "Projects",
+        slug: "/project",
+        icon: Code,
     },
     {
         name: "Blogs",
         slug: "/blog",
-        icon: Bookmark,
+        icon: PenLine,
     },
     {
-        name: "Projects",
-        slug: "/project",
-        icon: Code,
+        name: "Bookshelf",
+        slug: "/bookshelf",
+        icon: Library,
     },
     {
         name: "Tech",
         slug: "/tech",
         icon: Flame,
     },
+    // {
+    //     name: "Talks",
+    //     slug: "/talks",
+    //     icon: MicVocal,
+    // },
     {
-        name: "Talks",
-        slug: "/talks",
-        icon: MicVocal,
-    }
+        name: "Links",
+        slug: "/links",
+        icon: Paperclip,
+    },
+    {
+        name: "Work",
+        slug: "/work",
+        icon: BriefcaseBusiness,
+    },
 ];

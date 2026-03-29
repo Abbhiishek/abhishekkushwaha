@@ -21,10 +21,10 @@ function ProjectsWobbleCard({ url, title, description, image, gridSpan, backgrou
                 className=""
             >
                 <div className="max-w-xs">
-                    <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] dark:text-white text-neutral-500 hover:text-neutrals-9 font-acme">
+                    <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-brand-peach font-acme">
                         {title}
                     </h2>
-                    <p className="mt-4 text-left  text-base/6 dark:text-neutral-200 text-neutral-500 font-clash font-semibold">
+                    <p className="mt-4 text-left text-base/6 text-neutral-200 font-clash font-semibold">
                         {description}
                     </p>
                 </div>

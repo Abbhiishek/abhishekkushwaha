@@ -7,7 +7,7 @@ import './globals.css';
 
 
 const description =
-  'A Full stack web developer passionate about building web applications, working with data driven applications, getting useful insights, and communicating it to solve business problems.'
+  'CTO & Co-founder at HyrecruitAI. Engineering leader building AI-powered hiring infrastructure, scaling teams, and shipping products from zero to production.'
 const name = 'Abhishek Kushwaha'
 
 

@@ -1,25 +1,51 @@
-import axios from "axios";
+import path from "path"
+import { estimateReadingTime, getMarkdownFiles, parseMarkdownFile } from "./markdown"
+import type { BlogPost, BlogPostWithContent } from "./types"
 
-export async function getBlogs() {
-    try {
-        const res = await axios.get("https://dev.to/api/articles?username=abbhiishek");
+const BLOG_DIR = path.join(process.cwd(), "content", "blog")
 
-        const blogs = res.data.slice(0, 20);
+function fileToBlogPost(filePath: string): BlogPost {
+    const { frontmatter, raw } = parseMarkdownFile(filePath)
+    const slug = path.basename(filePath, ".md")
 
-        return blogs.map((blog: any) => {
-            return {
-                slug: blog.slug,
-                url: blog.url,
-                title: blog.title,
-                public_reactions_count: blog.public_reactions_count,
-                tags: blog.tag_list,
-                published_at: blog.published_at,
-                cover_image: blog.cover_image ?? blog.social_image,
-                comments_count: blog.comments_count,
-                description: blog.description,
-            };
-        });
-    } catch {
-        return [];
+    return {
+        slug,
+        title: frontmatter.title ?? slug,
+        description: frontmatter.description ?? "",
+        date: frontmatter.date ?? "",
+        tags: frontmatter.tags ? frontmatter.tags.split(",").map((t) => t.trim()) : [],
+        coverImage: frontmatter.coverImage ?? "/thumbnail.jpg",
+        featured: frontmatter.featured === "true",
+        readingTime: estimateReadingTime(raw),
     }
+}
+
+export function getAllBlogPosts(): BlogPost[] {
+    return getMarkdownFiles(BLOG_DIR)
+        .map(fileToBlogPost)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
+
+export function getBlogPostBySlug(slug: string): BlogPostWithContent | null {
+    const filePath = path.join(BLOG_DIR, `${slug}.md`)
+    try {
+        const { frontmatter, html, raw } = parseMarkdownFile(filePath)
+        return {
+            slug,
+            title: frontmatter.title ?? slug,
+            description: frontmatter.description ?? "",
+            date: frontmatter.date ?? "",
+            tags: frontmatter.tags ? frontmatter.tags.split(",").map((t) => t.trim()) : [],
+            coverImage: frontmatter.coverImage ?? "/thumbnail.jpg",
+            featured: frontmatter.featured === "true",
+            readingTime: estimateReadingTime(raw),
+            html,
+        }
+    } catch {
+        return null
+    }
+}
+
+export function getFeaturedBlogPosts(): BlogPost[] {
+    return getAllBlogPosts().filter((p) => p.featured)
 }

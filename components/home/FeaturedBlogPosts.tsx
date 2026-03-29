@@ -1,15 +1,11 @@
-import { AnimatedGrid, AnimatedItem, AnimatedPage } from "@/components/AnimatedList"
-import { getAllBlogPosts } from "@/lib/blogs"
+"use client"
+
+import { FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
+import type { BlogPost } from "@/lib/types"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
-import { Calendar, Clock } from "lucide-react"
-import { Metadata } from "next"
+import { ArrowRight, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
-
-export const metadata: Metadata = {
-    title: "Blog",
-    description: "Writing about engineering leadership, system architecture, and building products at scale.",
-}
 
 const cardAccents = [
     { border: "ring-brand-pink/30", hoverBorder: "hover:ring-brand-pink/60", title: "group-hover:text-brand-pink", dot: "bg-brand-pink" },
@@ -17,25 +13,33 @@ const cardAccents = [
     { border: "ring-brand-magenta/30", hoverBorder: "hover:ring-brand-magenta/60", title: "group-hover:text-brand-magenta", dot: "bg-brand-magenta" },
 ]
 
-export default function Blogs() {
-    const posts = getAllBlogPosts()
+export default function FeaturedBlogPosts({ posts }: { posts: BlogPost[] }) {
+    const featured = posts
+
+    if (featured.length === 0) return null
 
     return (
-        <AnimatedPage className="flex flex-col gap-8 mb-20 mt-28 lg:mt-10">
-            <div>
-                <h1 className={cn("dark:text-zinc-200 text-zinc-900 leading-none mb-3 text-5xl lg:text-6xl", adlam_display.className)}>
-                    Blog
-                </h1>
-                <p className="dark:text-zinc-400 text-zinc-700 leading-relaxed max-w-2xl">
-                    Writing about engineering leadership, system architecture, and building products at scale.
-                </p>
-            </div>
+        <section className="flex flex-col gap-6 w-full">
+            <FadeInView>
+                <div className="flex items-end justify-between">
+                    <h2 className={cn("text-2xl sm:text-3xl dark:text-white text-neutrals-13", adlam_display.className)}>
+                        Latest Writing
+                    </h2>
+                    <Link
+                        href="/blog"
+                        className="group flex items-center gap-1.5 text-sm text-brand-pink hover:text-brand-peach transition-colors"
+                    >
+                        Read all
+                        <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                </div>
+            </FadeInView>
 
-            <AnimatedGrid className="flex flex-col gap-6">
-                {posts.map((post, i) => {
+            <StaggerContainer className="flex flex-col gap-4">
+                {featured.map((post, i) => {
                     const accent = cardAccents[i % cardAccents.length]
                     return (
-                        <AnimatedItem key={post.slug}>
+                        <StaggerItem key={post.slug}>
                             <Link
                                 href={`/blog/${post.slug}`}
                                 className={cn(
@@ -67,10 +71,10 @@ export default function Blogs() {
                                     </span>
                                 </div>
                             </Link>
-                        </AnimatedItem>
+                        </StaggerItem>
                     )
                 })}
-            </AnimatedGrid>
-        </AnimatedPage>
+            </StaggerContainer>
+        </section>
     )
 }

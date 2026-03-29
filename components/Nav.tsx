@@ -37,7 +37,7 @@ export default function NavBar({ path }: { path: string }) {
                             {path === item.slug ? (
                                 <button
                                     key={index}
-                                    className="w-full flex justify-center items-center dark:bg-zinc-700 bg-zinc-800 dark:hover:bg-zinc-700 hover:bg-zinc-800 focus:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out dark:focus:bg-zinc-700 relative"
+                                    className="w-full flex justify-center items-center bg-brand-purple/20 ring-1 ring-brand-purple/40 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative"
                                     onMouseLeave={() => {
                                         const temp = [...tooltipVisibility];
                                         temp[index] = false;
@@ -51,10 +51,10 @@ export default function NavBar({ path }: { path: string }) {
                                     onClick={() => router.push(item.slug)}
                                 >
                                     <div className="p-2">
-                                        <item.icon size="1rem" className="text-zinc-100" />
+                                        <item.icon size="1rem" className="text-brand-pink" />
                                     </div>
                                     {tooltipVisibility[index] && (
-                                        <span className="absolute min-w-full text-[0.75rem] leading-none left-10 p-[0.62rem] rounded shadow-xl text-zinc-200 dark:bg-zinc-700 bg-zinc-800">
+                                        <span className="absolute min-w-full text-[0.75rem] leading-none left-10 p-[0.62rem] rounded shadow-xl text-zinc-200 bg-brand-purple">
                                             {item.name}
                                         </span>
                                     )}
@@ -62,7 +62,7 @@ export default function NavBar({ path }: { path: string }) {
                             ) : (
                                 <button
                                     key={index}
-                                    className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out dark:focus:bg-zinc-700 bg-zinc-700 hover:bg-zinc-800 focus:bg-zinc-800 relative"
+                                    className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out dark:focus:bg-zinc-700 bg-zinc-200 hover:bg-zinc-300 focus:bg-zinc-300 hover:ring-1 hover:ring-brand-purple/30 relative"
                                     onMouseLeave={() => {
                                         const temp = [...tooltipVisibility];
                                         temp[index] = false;
@@ -76,7 +76,7 @@ export default function NavBar({ path }: { path: string }) {
                                     onClick={() => router.push(item.slug)}
                                 >
                                     <div className="p-2">
-                                        <item.icon size="1rem" className="text-zinc-100" />
+                                        <item.icon size="1rem" className="dark:text-zinc-100 text-zinc-700" />
                                     </div>
                                     {tooltipVisibility[index] && (
                                         <span className="absolute text-[0.75rem] leading-none left-10 p-[0.62rem] rounded shadow-xl text-zinc-200 dark:bg-zinc-700 bg-zinc-800">
@@ -91,26 +91,26 @@ export default function NavBar({ path }: { path: string }) {
                 <div className="flex flex-col gap-4">
                     {mounted === true && (
                         <button
-                            className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
+                            className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-200 hover:bg-zinc-300 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out hover:ring-1 hover:ring-brand-purple/30"
                             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         >
-                            <div className="p-2 text-zinc-100">
+                            <div className="p-2 dark:text-zinc-100 text-zinc-700">
                                 {theme === "dark" ? <Sun /> : <Moon />}
                             </div>
                         </button>
                     )}
                     <button
-                        className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
+                        className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-200 hover:bg-zinc-300 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out hover:ring-1 hover:ring-brand-purple/30"
                         //   onClick={() => router.push(item.slug)}
                         onClick={query.toggle}
                     >
                         <div className="p-2">
-                            <Command size="1rem" className="text-zinc-100" />
+                            <Command size="1rem" className="dark:text-zinc-100 text-zinc-700" />
                         </div>
                     </button>
                 </div>
             </div>
-            <div className="border-r-2 dark:border-zinc-800 border-zinc-500 h-full mt-4"></div>
+            <div className="w-[2px] h-full mt-4 bg-gradient-to-b from-brand-purple/40 via-brand-pink/20 to-transparent"></div>
         </div>
     );
 }

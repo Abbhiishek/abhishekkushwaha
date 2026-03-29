@@ -1,112 +1,123 @@
-import FlipRoleSection from "@/components/home/FlipRoleSection"
+"use client"
+
+import { FollowerPointerCard } from "@/components/ui/following-pointer"
+import { FadeIn } from "@/components/ui/motion"
+import { links } from "@/lib/links"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
-import { Bookmark, Code, Flame, User } from "lucide-react"
+import { motion } from "framer-motion"
+import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { FollowerPointerCard } from "../ui/following-pointer"
 
-const navCards = [
-    {
-        title: "About",
-        description: "Know more about me",
-        href: "/about",
-        icon: User,
-        color: "from-sky-500/20 to-blue-600/20 dark:from-sky-500/10 dark:to-blue-600/10",
-        ring: "ring-sky-500/30",
-    },
-    {
-        title: "Projects",
-        description: "Things I've built",
-        href: "/project",
-        icon: Code,
-        color: "from-emerald-500/20 to-green-600/20 dark:from-emerald-500/10 dark:to-green-600/10",
-        ring: "ring-emerald-500/30",
-    },
-    {
-        title: "Blog",
-        description: "Writings & snippets",
-        href: "/blog",
-        icon: Bookmark,
-        color: "from-violet-500/20 to-purple-600/20 dark:from-violet-500/10 dark:to-purple-600/10",
-        ring: "ring-violet-500/30",
-    },
-    {
-        title: "Tech",
-        description: "Tools I use daily",
-        href: "/tech",
-        icon: Flame,
-        color: "from-amber-500/20 to-orange-600/20 dark:from-amber-500/10 dark:to-orange-600/10",
-        ring: "ring-amber-500/30",
-    },
-]
+const keywords = ["AI & ML", "System Architecture", "Engineering Leadership"]
 
 function BentoGridHeroSection() {
     return (
-        <main className="flex flex-col gap-6 w-full">
-            {/* Hero section: stacks on mobile, side-by-side on desktop */}
-            <div className="flex flex-col lg:flex-row gap-6 w-full">
-                {/* Photo */}
-                <div className="w-full lg:w-5/12 shrink-0">
-                    <FollowerPointerCard title={<p>Abhishek Kushwaha</p>}>
-                        <Image
-                            src="/thumbnail.jpg"
-                            alt="Abhishek Kushwaha"
-                            width={1000}
-                            height={700}
-                            className="w-full h-[300px] sm:h-[400px] lg:h-[600px] object-cover rounded-3xl grayscale hover:grayscale-0 transition duration-500 ease-in-out"
-                            priority
-                        />
-                    </FollowerPointerCard>
-                </div>
+        <section className="flex flex-col-reverse lg:flex-row items-center lg:items-start gap-8 lg:gap-10 w-full">
+            {/* Content — LEFT */}
+            <div className="flex flex-col gap-5 w-full lg:w-[58%] text-left">
+                {/* Keyword chips */}
+                <FadeIn delay={0.1}>
+                    <div className="flex flex-wrap justify-start gap-2">
+                        {keywords.map((kw, i) => (
+                            <span key={kw} className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-brand-pink">
+                                {kw}
+                                {i < keywords.length - 1 && <span className="text-neutrals-7">·</span>}
+                            </span>
+                        ))}
+                    </div>
+                </FadeIn>
 
-                {/* Right side: Name + Role + Cards */}
-                <div className="flex flex-col gap-4 w-full lg:w-7/12">
-                    {/* Name banner */}
-                    <div
+                {/* Headline */}
+                <FadeIn delay={0.2}>
+                    <h1
                         className={cn(
-                            "rounded-3xl dark:bg-neutrals-12/40 bg-brand-dark ring ring-neutrals-10 flex justify-center items-center py-6 lg:py-8 text-white text-2xl sm:text-3xl lg:text-4xl",
+                            "text-xl sm:text-2xl lg:text-3xl text-neutrals-13 dark:text-white leading-snug",
                             adlam_display.className
                         )}
                     >
-                        Abhishek Kushwaha
-                    </div>
+                        CTO & Co-founder at HyrecruitAI <br /> building the future of AI-powered hiring.
+                    </h1>
+                </FadeIn>
 
-                    {/* Flip role */}
-                    <div className="rounded-3xl dark:bg-neutrals-12/40 bg-brand-dark ring-1 ring-navy-blue-400 flex justify-center items-center py-4 lg:py-6">
-                        <FlipRoleSection />
+                {/* Description paragraphs */}
+                <FadeIn delay={0.35}>
+                    <div className="flex flex-col gap-4 text-base sm:text-lg leading-relaxed text-neutrals-7 dark:text-neutrals-6">
+                        <p>
+                            I lead engineering at{" "}
+                            <span className="text-brand-purple dark:text-brand-pink font-medium">HyrecruitAI</span>,
+                            where we are building an AI-powered interview and assessment platform.
+                            From architecting the real-time video pipeline to designing our LLM evaluation engine,
+                            I own the full technical stack — infrastructure, product, and team.
+                        </p>
+                        <p>
+                            My work spans{" "}
+                            <span className="text-brand-purple dark:text-brand-pink font-medium">system design</span>,{" "}
+                            <span className="text-brand-purple dark:text-brand-pink font-medium">full-stack development</span>,{" "}
+                            <span className="text-brand-purple dark:text-brand-pink font-medium">AI/ML integration</span>, and{" "}
+                            <span className="text-brand-purple dark:text-brand-pink font-medium">engineering management</span>.
+                            I have scaled teams from 2 to 15 engineers, shipped products used by thousands,
+                            and built open-source tools adopted by the developer community.
+                        </p>
                     </div>
+                </FadeIn>
 
-                    {/* Nav cards grid */}
-                    <div className="grid grid-cols-2 gap-4 flex-1">
-                        {navCards.map((card) => (
-                            <Link
-                                key={card.href}
-                                href={card.href}
-                                className={cn(
-                                    "group relative rounded-2xl bg-gradient-to-br p-4 sm:p-5 lg:p-6 ring-1 flex flex-col justify-between gap-3 hover:scale-[1.02] transition-all duration-300 hover:shadow-lg dark:hover:shadow-zinc-800/50",
-                                    card.color,
-                                    card.ring
-                                )}
+                {/* Social links */}
+                <FadeIn delay={0.5}>
+                    <div className="flex items-center justify-start gap-5 mt-2">
+                        {links.slice(0, 5).map((link) => (
+                            <motion.a
+                                key={link.name}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={link.name}
+                                whileHover={{ scale: 1.2, y: -2 }}
+                                whileTap={{ scale: 0.9 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                className="text-neutrals-7 dark:text-neutrals-6 hover:text-brand-purple dark:hover:text-brand-pink transition-colors duration-200"
                             >
-                                <card.icon
-                                    size={28}
-                                    className="dark:text-zinc-300 text-zinc-700 group-hover:scale-110 transition-transform duration-300"
-                                />
-                                <div>
-                                    <h3 className="dark:text-zinc-200 text-zinc-800 font-semibold text-base sm:text-lg">
-                                        {card.title}
-                                    </h3>
-                                    <p className="dark:text-zinc-400 text-zinc-600 text-xs sm:text-sm mt-0.5">
-                                        {card.description}
-                                    </p>
-                                </div>
-                            </Link>
+                                <link.icon size={22} />
+                            </motion.a>
                         ))}
                     </div>
-                </div>
+                </FadeIn>
+
+                {/* CTAs */}
+                <FadeIn delay={0.6}>
+                    <div className="flex items-center justify-start gap-4 mt-2">
+                        <Link
+                            href="/about"
+                            className="flex items-center gap-2 px-6 py-3 rounded-full ring-1 ring-neutrals-5 dark:ring-neutrals-10 text-neutrals-9 dark:text-neutrals-5 text-sm font-medium uppercase tracking-wide hover:ring-brand-purple/50 dark:hover:ring-brand-purple/50 transition-colors duration-200"
+                        >
+                            About Me
+                        </Link>
+                        <Link
+                            href="/blog"
+                            className="group flex items-center gap-2 px-6 py-3 rounded-full bg-brand-purple text-white text-sm font-medium uppercase tracking-wide hover:bg-brand-magenta transition-colors duration-200"
+                        >
+                            Read Latest Blogs
+                            <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                        </Link>
+                    </div>
+                </FadeIn>
             </div>
-        </main>
+
+            {/* Photo — RIGHT */}
+            <FadeIn delay={0.3} y={0} className="w-full lg:w-[42%] shrink-0 overflow-hidden rounded-3xl">
+                <FollowerPointerCard title={<p>Abhishek Kushwaha</p>}>
+                    <Image
+                        src="/thumbnail.jpg"
+                        alt="Abhishek Kushwaha"
+                        width={800}
+                        height={800}
+                        className="w-full h-auto rounded-3xl hover:scale-105 transition-transform duration-500 ease-in-out"
+                        priority
+                    />
+                </FollowerPointerCard>
+            </FadeIn>
+        </section>
     )
 }
 

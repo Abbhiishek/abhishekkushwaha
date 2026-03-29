@@ -1,11 +1,10 @@
 import { NavbarItems } from "@/lib/nav";
+import { cn } from "@/utils/cn";
 import { useKBar } from "kbar";
 import { Command, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-
-
 
 export default function MobileNavBar({ path }: { path: string }) {
     const { query } = useKBar();
@@ -17,50 +16,51 @@ export default function MobileNavBar({ path }: { path: string }) {
     useEffect(() => setMounted(true), []);
 
     return (
-        <div className="min-w-full min-h-full h-full flex overflow-x-scroll dark:bg-zinc-800/50 bg-zinc-500/50 justify-center items-center py-1 rounded-lg shadow-xl gap-4">
-            <div className="flex justify-evenly gap-4 pl-24">
+        <div className="w-full flex items-center gap-1 py-2 px-2 rounded-2xl dark:bg-zinc-900/80 bg-white/80 backdrop-blur-xl shadow-lg ring-1 ring-brand-purple/20 overflow-x-auto">
+            <div className="flex items-center gap-1 flex-1 min-w-0">
                 {NavbarItems.map((item, index) => {
+                    const isActive = path === item.slug;
                     return (
                         <button
                             key={index}
-                            className="w-full h-12 flex justify-center items-center"
-                        >
-                            {path === item.slug ? (
-                                <item.icon
-                                    size="2rem"
-                                    className="text-zinc-100 rounded dark:bg-zinc-700 bg-zinc-800 dark:hover:bg-zinc-700 hover:bg-zinc-800 py-2 cursor-pointer hover:scale-110 duration-300 ease-in-out shadow hover:shadow-xl"
-                                    onClick={() => router.push(item.slug)}
-                                />
-                            ) : (
-                                <item.icon
-                                    size="2rem"
-                                    className="text-zinc-100 rounded dark:bg-zinc-800 bg-zinc-700 dark:hover:bg-zinc-700 hover:bg-zinc-800 py-2 cursor-pointer hover:scale-110 duration-300 ease-in-out shadow hover:shadow-xl"
-                                    onClick={() => router.push(item.slug)}
-                                />
+                            onClick={() => router.push(item.slug)}
+                            className={cn(
+                                "shrink-0 p-2.5 rounded-xl transition-all duration-200",
+                                isActive
+                                    ? "bg-brand-purple/20 ring-1 ring-brand-purple/40"
+                                    : "hover:bg-zinc-200 dark:hover:bg-zinc-800"
                             )}
+                        >
+                            <item.icon
+                                size={18}
+                                className={cn(
+                                    isActive
+                                        ? "text-brand-pink"
+                                        : "dark:text-zinc-400 text-zinc-600"
+                                )}
+                            />
                         </button>
                     );
                 })}
             </div>
-            <div className="flex gap-4 pr-4">
+            <div className="flex items-center gap-1 shrink-0 border-l border-zinc-300 dark:border-zinc-700 pl-1">
                 {mounted && (
                     <button
-                        className="w-full flex justify-center items-center dark:bg-zinc-800 bg-zinc-700 dark:hover:bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
+                        className="p-2.5 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-200"
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                     >
-                        <div className="p-2 text-zinc-100">
-                            {theme === "dark" ? <Sun /> : <Moon />}
-                        </div>
+                        {theme === "dark" ? (
+                            <Sun size={18} className="text-zinc-400" />
+                        ) : (
+                            <Moon size={18} className="text-zinc-600" />
+                        )}
                     </button>
                 )}
                 <button
-                    className="w-full flex justify-center items-center dark:bg-zinc-800 bg-zinc-700 dark:hover:bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
-                    //   onClick={() => router.push(item.slug)}
+                    className="p-2.5 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-200"
                     onClick={query.toggle}
                 >
-                    <div className="p-2">
-                        <Command size="1rem" className="text-zinc-100" />
-                    </div>
+                    <Command size={18} className="dark:text-zinc-400 text-zinc-600" />
                 </button>
             </div>
         </div>

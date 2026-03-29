@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun remove:*)",
+      "Bash(/c/Users/abhis/.bun/bin/bun remove:*)"
+    ]
+  }
+}

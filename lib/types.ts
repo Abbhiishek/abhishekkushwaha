@@ -1,13 +1,25 @@
-export type RecentBlogs = Blog[];
+export interface BlogPost {
+    slug: string
+    title: string
+    description: string
+    date: string
+    tags: string[]
+    coverImage: string
+    featured: boolean
+    readingTime: number
+}
 
-export type Blog = {
-    slug: string;
-    url: string;
-    title: string;
-    public_reactions_count: number;
-    tags: string[];
-    published_at: string;
-    cover_image: string;
-    comments_count: number;
-    description: string;
-};
+export interface BlogPostWithContent extends BlogPost {
+    html: string
+}
+
+export interface Project {
+    title: string
+    description: string
+    image: string
+    gridSpan: string
+    backgroundColor: string
+    imageposition: string
+    url: string
+    featured?: boolean
+}
