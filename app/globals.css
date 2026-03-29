@@ -1,7 +1,5 @@
 @import url(https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,301,300,400&display=swap);
-@import url('https://fonts.googleapis.com/css2?family=Acme&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Acme&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Aclonica&family=Acme&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Acme&family=ADLaM+Display&family=Aclonica&display=swap');
 
 
 @tailwind base;

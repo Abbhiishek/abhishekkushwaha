@@ -6,7 +6,7 @@ import {
   SiHashnode,
   SiInstagram,
   SiNpm,
-  SiTwitter
+  SiX
 } from "react-icons/si";
 
 export type Link = {
@@ -41,7 +41,7 @@ export const links: Links = [
     name: "Twitter",
     url: "https://twitter.com/abbhishekstwt",
     value: "@abbhishekstwt",
-    icon: SiTwitter,
+    icon: SiX,
   },
   {
     name: "NPM",
