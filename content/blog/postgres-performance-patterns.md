@@ -42,6 +42,40 @@ ON candidates (organization_id, status, applied_at DESC);
 
 Column order matters. The most selective column goes first. For us, `organization_id` filters out 95% of rows immediately.
 
+### Reading EXPLAIN ANALYZE Output
+
+Learning to read `EXPLAIN ANALYZE` output is the single most useful database skill. Here is a real example from our candidates table (anonymized):
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, name, status, applied_at
+FROM candidates
+WHERE organization_id = 'abc-123' AND status = 'screening'
+ORDER BY applied_at DESC LIMIT 25;
+```
+
+Before adding the composite index, the plan showed:
+
+```
+Sort (cost=8234..8245 rows=4200 width=64) (actual time=342.1..342.3 rows=25)
+  Sort Key: applied_at DESC
+  ->  Seq Scan on candidates (cost=0..7890 rows=4200 width=64) (actual time=0.02..338.5 rows=4180)
+        Filter: (organization_id = 'abc-123' AND status = 'screening')
+        Rows Removed by Filter: 195820
+        Buffers: shared hit=4521 read=1230
+```
+
+The sequential scan read 200,000 rows to find 4,200 matches. After adding `idx_candidates_org_status`:
+
+```
+Limit (cost=0.42..12.8 rows=25 width=64) (actual time=0.08..0.15 rows=25)
+  ->  Index Scan using idx_candidates_org_status on candidates (cost=0.42..2100 rows=4200 width=64) (actual time=0.07..0.14 rows=25)
+        Index Cond: (organization_id = 'abc-123' AND status = 'screening')
+        Buffers: shared hit=4
+```
+
+From 342ms to 0.15ms. From reading 5,751 pages to reading 4. The `LIMIT` pushes down into the index scan because the index is already sorted by `applied_at DESC`. This is why column order in composite indexes matters — the sort column should be last.
+
 ## Partial Indexes for Hot Paths
 
 Not every row needs to be indexed. Our interview scheduling query only cares about upcoming interviews:
@@ -127,5 +161,44 @@ We use Drizzle Kit for migrations and follow one rule: **never lock a table for 
 - Add columns as nullable first, backfill, then add the NOT NULL constraint
 - Create indexes with `CONCURRENTLY` to avoid blocking writes
 - Never rename columns in a single migration — add the new one, migrate data, drop the old one
+
+## Vacuum Tuning for High-Write Tables
+
+Autovacuum defaults are conservative. For our `interview_events` table — which receives 50,000+ inserts per day from real-time interview activity — the defaults were not aggressive enough. Dead tuples would accumulate during business hours, and sequential scans on the table would slow by 30-40% before autovacuum caught up.
+
+We tuned per-table settings:
+
+```sql
+ALTER TABLE interview_events SET (
+  autovacuum_vacuum_scale_factor = 0.01,    -- default 0.2
+  autovacuum_analyze_scale_factor = 0.005,  -- default 0.1
+  autovacuum_vacuum_cost_delay = 2          -- default 2ms, keep it low for this table
+);
+```
+
+With `scale_factor = 0.01`, autovacuum kicks in after 1% of the table has dead tuples rather than 20%. For a table with 2 million rows, that means vacuuming starts at 20,000 dead tuples instead of 400,000. The dead tuple ratio now stays below 2% during peak hours.
+
+## Table Partitioning for Large Tables
+
+Our `audit_logs` table hit 50 million rows after 8 months and queries against it slowed noticeably. Full table scans that were acceptable at 5 million rows were now taking 8+ seconds.
+
+We partitioned by month using PostgreSQL declarative partitioning:
+
+```sql
+CREATE TABLE audit_logs (
+  id uuid DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  action text NOT NULL,
+  payload jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+) PARTITION BY RANGE (created_at);
+
+CREATE TABLE audit_logs_2025_11 PARTITION OF audit_logs
+  FOR VALUES FROM ('2025-11-01') TO ('2025-12-01');
+```
+
+Queries that filter by date range now hit one or two partitions instead of the full table. A query for "all audit events in November" scans ~4 million rows in one partition instead of 50 million across the entire table.
+
+We automate partition management with a cron job that creates next month's partition on the 25th of each month. If the partition already exists (idempotent check), the job does nothing.
 
 These patterns are not exotic. They are the basics, applied consistently. The biggest performance gains at HyrecruitAI did not come from clever tricks — they came from measuring first, then making targeted changes based on real data.

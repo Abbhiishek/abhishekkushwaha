@@ -73,11 +73,20 @@ const rtcConfig: RTCConfiguration = {
 
 We use TCP on port 443 for TURN as a fallback because some corporate firewalls block UDP entirely. The credentials rotate every 12 hours using a shared secret.
 
+## Codec Selection
+
+Codec choice affects both video quality and downstream AI processing:
+
+- **Video:** VP9 preferred for better compression at low bitrates (critical for candidates on poor connections). H.264 as fallback for Safari, which has inconsistent VP9 support. We enforce codec preference order in the SDP using `RTCRtpSender.getCapabilities('video').codecs` reordered before calling `setCodecPreferences()`.
+- **Audio:** Opus at 48kHz, non-negotiable. Lower sample rates degrade transcription accuracy. We tested 16kHz Opus (the default for many WebRTC implementations) and transcription word error rate increased by 6%. The difference between "Postgres" and "post-grace" in a transcription often comes down to sample rate.
+
+The codec negotiation happens in the SDP exchange. If both peers support VP9, they use it. If one peer (usually Safari) does not, they fall back to H.264. The signaling server does not participate in codec negotiation — it is purely peer-to-peer.
+
 ## Handling Network Instability
 
 Real-world networks are messy. Candidates interview from coffee shops, shared apartments, and mobile hotspots. We built several layers of resilience:
 
-- **Adaptive bitrate**: We monitor `RTCPeerConnection.getStats()` every 2 seconds and adjust video resolution and framerate based on available bandwidth. If bandwidth drops below 500kbps, we switch to audio-only with a static avatar.
+- **Adaptive bitrate**: We sample `RTCPeerConnection.getStats()` every 2 seconds and track `availableOutgoingBitrate`. Our thresholds: above 1.5Mbps = 720p at 30fps, 500kbps to 1.5Mbps = 480p at 15fps, below 500kbps = audio-only with a static avatar. We adjust encoding parameters via `sender.setParameters()` rather than renegotiating the connection, which avoids the brief freeze that comes with a full renegotiation.
 - **Reconnection logic**: If the ICE connection state transitions to `disconnected`, we attempt an ICE restart before falling back to a full renegotiation. Most interruptions resolve within 3-5 seconds.
 - **Connection quality indicator**: The UI shows a real-time connection quality badge (green/yellow/red) so participants know if their network is struggling.
 
@@ -99,6 +108,16 @@ We need recordings for two reasons: candidates can review their performance, and
 The recorder captures the composite media stream, pipes it through FFmpeg for encoding, and uploads chunks to Azure Blob Storage in near-real-time. If the recorder crashes, the interview continues unaffected -- recording is a non-blocking side effect.
 
 This architecture also feeds our real-time transcription pipeline. The audio stream from the recorder goes to Azure Speech Services, and the transcript is available to the AI evaluator within seconds of each response.
+
+## Mobile-Specific Challenges
+
+A significant percentage of candidates interview from their phones. Mobile WebRTC has its own set of problems:
+
+**iOS Safari kills WebRTC connections when backgrounded.** If a candidate switches to another app for more than ~30 seconds, Safari terminates the WebRTC connection silently. We detect the `visibilitychange` event and show a "Rejoin Interview" prompt when the user returns, which triggers an automatic reconnection attempt. Most candidates lose under 5 seconds.
+
+**Mobile network switching.** Candidates on the move switch between WiFi and cellular mid-call. The ICE connection drops during the handover. We listen for `navigator.connection` change events and trigger an ICE restart proactively rather than waiting for the connection to time out. We also maintain a 5-second audio buffer so there is no audible gap if the restart completes quickly.
+
+**Battery drain.** A 30-minute video interview consumes approximately 15% battery on a mid-range Android phone at 720p/30fps. We default to 15fps on mobile devices (detected via user agent) and let candidates manually toggle to higher quality if they want. The reduced framerate saves roughly 5% battery over a 30-minute session.
 
 ## Lessons from Production
 

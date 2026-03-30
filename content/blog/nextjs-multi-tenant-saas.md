@@ -86,6 +86,12 @@ Each tenant has a configuration object stored in the database that controls:
 - **Features**: Which modules are enabled (video interviews, async interviews, AI evaluation)
 - **Integrations**: ATS webhook URLs, SSO provider settings, email domains
 
+## Billing Isolation
+
+Each tenant maps to a Stripe customer. Subscriptions, invoices, and usage metering are scoped entirely to the Stripe customer ID stored in the tenant record. We never aggregate billing data across tenants — even internal analytics dashboards filter by tenant.
+
+For usage-based billing (charged per completed interview), we track events in a `usage_events` table with `tenant_id` and `event_type` columns. A nightly job syncs these events to Stripe's usage records API. If the sync fails, it retries the next night with the accumulated delta. No interview is billed twice because each usage event has a unique ID that Stripe deduplicates.
+
 We load tenant config at the layout level and pass it through React context:
 
 ```typescript
@@ -116,6 +122,18 @@ These tests run in CI on every pull request. They have caught two bugs so far --
 
 ## What I Would Do Differently
 
-If I started over, I would invest in tenant provisioning automation earlier. We manually created tenant configurations for our first 20 customers. That worked, but it did not scale. Now we have a self-service onboarding flow that provisions a tenant, seeds default config, sets up the subdomain DNS record via Cloudflare API, and sends the welcome email -- all in under 30 seconds.
+If I started over, I would invest in tenant provisioning automation earlier. We manually created tenant configurations for our first 20 customers. That took approximately 45 minutes per tenant and required CTO involvement (me). That clearly did not scale.
+
+Now we have a self-service onboarding flow that runs a 5-step provisioning pipeline:
+
+1. Create tenant row in the database with a unique slug
+2. Seed default configuration (feature flags, branding defaults, default interview templates)
+3. Create subdomain DNS record via Cloudflare API (`${slug}.hyrecruit.ai`)
+4. Provision a Stripe customer with the selected plan
+5. Send welcome email with admin login credentials
+
+Each step is idempotent. If step 3 fails (Cloudflare API timeout), retrying the pipeline skips steps 1-2 (already completed) and picks up from step 3. The entire pipeline runs as a background job and completes in under 30 seconds. From 45 minutes of manual work to 30 seconds of automation — that is the kind of investment that pays back immediately once you have more than 10 customers.
 
 Multi-tenancy is one of those things that is much harder to retrofit than to build in from the start. If you are building a SaaS with Next.js, think about tenant isolation before you write your first API route. Your future self will thank you.
+
+For how we optimize the database queries that power our multi-tenant dashboards, see [PostgreSQL Performance Patterns We Use at HyrecruitAI](/blog/postgres-performance-patterns).

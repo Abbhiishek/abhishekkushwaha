@@ -52,6 +52,30 @@ export type Candidate = z.infer<typeof candidateSchema>;
 
 Both the API and the frontend import from `@hyrecruit/shared`. One schema, one type, zero drift between what the backend validates and what the frontend expects.
 
+## Package Boundary Enforcement
+
+A monorepo's biggest risk is spaghetti imports. Without guardrails, any file can import from any other file, and the clean package boundaries dissolve within weeks.
+
+We enforce boundaries at two levels:
+
+**ESLint rules block deep imports.** Each package exposes a public API through its `index.ts`. Importing from internal modules triggers a lint error:
+
+```json
+{
+  "rules": {
+    "no-restricted-imports": ["error", {
+      "patterns": [
+        { "group": ["@hyrecruit/*/src/internal/*"], "message": "Import from the package's public API, not internal modules." }
+      ]
+    }]
+  }
+}
+```
+
+This rule caught 12 boundary violations in the first month — mostly engineers taking shortcuts by importing a utility directly from a package's internal directory instead of re-exporting it through the public API.
+
+**TypeScript project references.** We use `composite: true` in each package's `tsconfig.json` so that packages only see each other's declaration files, not source code. This has two benefits: the TypeScript language server stays fast because it does not parse source across all packages, and it physically enforces that cross-package imports go through the compiled public API.
+
 ## Turborepo Configuration
 
 Our `turbo.json` defines the task pipeline:
@@ -127,4 +151,16 @@ The `...[HEAD^1]` syntax means "packages that changed since the last commit." Co
 
 **Invest in the shared tsconfig early.** A base `tsconfig.json` in `packages/config-ts` that all apps extend prevents configuration drift and "works on my machine" issues.
 
+## Troubleshooting Common Monorepo Issues
+
+After a year of running this setup, these are the problems that tripped us up and how we fixed them:
+
+**Ghost dependencies.** An app imports a package that is only installed in another app's `node_modules`. It works locally because of hoisting — the package manager lifts dependencies to the root `node_modules`. It fails in CI or on a fresh install. The fix: use `pnpm` with `strict-peer-dependencies=true` and ensure every package declares its own dependencies explicitly. Hoisting is convenient until it hides missing dependencies.
+
+**TypeScript version skew.** One package on TypeScript 5.3, another on 5.4. Type inference differs subtly between versions, causing builds to pass locally but fail in CI (or vice versa). The fix: a single `typescript` dependency in the root `package.json`, referenced everywhere. In pnpm, you can use the catalog feature: `"typescript": "catalog:"` in workspace packages resolves to the version defined once in `pnpm-workspace.yaml`.
+
+**Turborepo cache poisoning.** A build output includes an absolute path (e.g., source maps referencing `/Users/abhishek/...`) or a build timestamp. The cache key matches, but the output is machine-specific, so other developers get cache hits with broken paths. The fix: audit the `outputs` in `turbo.json` and ensure all build outputs are deterministic. Remove timestamps from build output, use relative paths in source maps (`--sourceRoot /` flag), and avoid injecting `BUILD_TIME` environment variables into builds.
+
 The monorepo is not a silver bullet. It adds complexity to your tooling and CI. But for a startup where three engineers touch every part of the stack, having everything in one repo with shared types and a single PR workflow is a significant multiplier on shipping speed.
+
+For the strategic reasoning behind choosing a monorepo (and when NOT to), see [Why We Chose a TypeScript Monorepo for Our Startup](/blog/why-typescript-monorepo).

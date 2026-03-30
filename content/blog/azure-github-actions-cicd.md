@@ -102,6 +102,46 @@ We also tag every production deployment in git and keep the last 10 build artifa
 
 Migrations deserve special attention. We run Drizzle ORM migrations as a separate CI step before the application deploy. The rule is simple: migrations must be backward-compatible. If a migration would break the currently running version, we split it into two releases -- one that adds the new schema, and one that removes the old.
 
+## Post-Deploy Monitoring
+
+Every production deploy triggers a 10-minute monitoring window. We watch three signals:
+
+- **Error rate** via Sentry — alerts if it increases by more than 2x baseline
+- **p95 latency** via Azure Application Insights — alerts if it exceeds 2 seconds
+- **Interview completion rate** — our key business metric. If it drops by more than 10%, something user-facing is broken
+
+If any signal crosses its threshold during the monitoring window, we auto-rollback via slot swap. The rollback is triggered by an Azure Monitor alert rule that calls a webhook, which in turn runs the slot swap command. Total time from detection to rollback: under 60 seconds.
+
+Our health check endpoint (`/api/health`) validates more than just "the server is running." It checks:
+
+- Database connectivity (a lightweight `SELECT 1` query)
+- Redis connectivity
+- External API reachability (Azure Speech Services, OpenAI)
+- Disk space and memory (basic thresholds)
+
+If any check fails, the endpoint returns a 503. The deployment slot health probe calls this endpoint, and a failing probe blocks the slot swap from proceeding.
+
+Alert routing: critical alerts (error rate spike, health check failure) go to PagerDuty. Warning alerts (latency increase, elevated queue depth) go to a Slack channel. Informational notifications (deploy started, deploy completed, slot swapped) go to the deploy channel.
+
+## Canary Deployments for High-Risk Changes
+
+For changes that touch the database schema, AI model configuration, or core interview flow, we use a weighted traffic split instead of an all-or-nothing slot swap:
+
+1. Route 10% of traffic to the new version for 1 hour
+2. If signals are healthy, increase to 50% for 30 minutes
+3. If still healthy, route 100% (full swap)
+
+Azure App Service supports traffic routing between slots natively:
+
+```bash
+az webapp traffic-routing set \
+  --resource-group hyrecruit-rg \
+  --name hyrecruit-prod \
+  --distribution pre-production=10
+```
+
+The canary saved us once. A Drizzle ORM minor version update changed query generation behavior for a specific left join pattern. The 10% canary showed a 3x increase in query duration for dashboard page loads. We caught it within 20 minutes and reverted the canary before 90% of users were ever exposed.
+
 ## What We Learned
 
 After eight months of running this pipeline, three things stand out:

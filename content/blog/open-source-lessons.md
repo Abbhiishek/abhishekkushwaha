@@ -20,7 +20,9 @@ The turning point was when I rewrote a project's README with:
 - A copy-paste install command
 - A minimal working example
 
-Stars tripled in a week. The code did not change at all. The lesson: people evaluate your project in under 30 seconds. If they cannot understand what it does and how to use it in that window, they leave.
+One of my CLI tools went from 40 stars to 300+ after the README rewrite. Weekly npm installs jumped from ~50 to ~400. The code did not change at all. The lesson: people evaluate your project in under 30 seconds. If they cannot understand what it does and how to use it in that window, they leave.
+
+My most-used library now has 1.2k stars and about 200 weekly downloads. It is maintained by 3 regular contributors — none of whom I recruited. They showed up because the contributing guide was clear, the issue labels were useful, and the first PR experience did not require a 2-hour dev environment setup.
 
 ## Pull Requests Need Guardrails, Not Gatekeeping
 
@@ -75,6 +77,19 @@ I treat docs like code now. They get PRs, they get reviews, they get versioned. 
 - **Contributing guide** — lower the barrier for new contributors
 
 At HyrecruitAI, we apply the same philosophy internally. Every internal tool gets a README. Every API gets example requests. It is the open-source discipline applied to a startup context, and it pays for itself every time a new engineer onboards.
+
+## My Open-Source Tooling Stack
+
+After years of experimentation, this is the tooling setup that works for me:
+
+- **Versioning:** Changesets. Handles monorepo versioning, generates changelogs, and publishes to npm in a single workflow. Far less friction than manual version bumps.
+- **Building:** tsup. Zero-config TypeScript bundler that outputs both ESM and CJS. I spent too many hours configuring Rollup before finding tsup.
+- **Testing:** Vitest. Fast, TypeScript-native, compatible with Jest APIs so migration is painless.
+- **Pre-commit:** Lefthook. Faster than Husky, simpler config, runs tasks in parallel.
+- **CI/Release:** GitHub Actions with Changesets action. On merge to main, it either opens a "Version Packages" PR or publishes to npm — fully automated.
+- **Dependency updates:** Renovate, not Dependabot. Renovate's grouping (batch all minor updates into one PR), scheduling (only open PRs on Mondays), and auto-merge for passing patch updates save significant review time. Dependabot opens a separate PR for every dependency, which drowns you in noise.
+- **Docs:** Mintlify or Starlight (Astro-based) for anything with more than 5 pages. README-only for smaller projects. The decision point: if you need a sidebar navigation, you need a docs site.
+- **Issue management:** Auto-label bot for triage (assigns labels based on file paths changed in linked PRs), stale bot with a 60-day window and a 14-day warning period before closing.
 
 ## The Real Lesson
 

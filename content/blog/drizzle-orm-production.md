@@ -27,6 +27,25 @@ const interviews = await prisma.interview.findMany({
 const stats = interviews.map(i => computeStats(i.evaluations));
 ```
 
+The real breaking point was a reporting query. We needed a CTE to compute rolling 30-day interview completion rates per company, then join that against the companies table with conditional aggregation. Prisma cannot express CTEs. The only option was `$queryRaw`, which throws away all type safety:
+
+```typescript
+// Prisma: raw SQL escape hatch, zero type safety
+const report = await prisma.$queryRaw`
+  WITH monthly_stats AS (
+    SELECT company_id, COUNT(*) as completed
+    FROM interviews
+    WHERE status = 'completed'
+      AND completed_at > NOW() - INTERVAL '30 days'
+    GROUP BY company_id
+  )
+  SELECT c.name, COALESCE(ms.completed, 0) as completed_30d
+  FROM companies c
+  LEFT JOIN monthly_stats ms ON ms.company_id = c.id
+`;
+// report is `unknown` — you are on your own for types
+```
+
 The other pain point was the generated client size. Prisma generates a Node.js query engine binary that added ~15MB to our deployment artifact. In a serverless context, that matters.
 
 ## Why Drizzle Won
@@ -103,10 +122,19 @@ Moving from Prisma to Drizzle took us about two weeks for a codebase with ~40 da
 3. Migrated writes to Drizzle module by module
 4. Removed Prisma entirely
 
-The hardest part was rewriting our seed scripts. The actual query migration was mechanical -- Drizzle's API is intuitive enough that most conversions were one-to-one.
+The hardest part was the details nobody warns you about:
+
+- **Exact schema matching.** The Drizzle schema had to match the existing database exactly, including default values and constraints that Prisma managed implicitly. Prisma auto-generates `createdAt` defaults and `@updatedAt` triggers. In Drizzle, you define these explicitly: `.defaultNow()` and application-level update timestamps.
+- **Enum conversion.** Prisma uses its own enum representation. Drizzle maps to PostgreSQL native enums. We wrote a migration that converted Prisma's enum columns to native PostgreSQL enums without data loss — `ALTER TABLE ... ALTER COLUMN ... TYPE ... USING ...`.
+- **Seed scripts.** Prisma's `createMany` has no direct Drizzle equivalent. We wrote a batch insert utility using `db.insert(table).values([...])` with chunking for large datasets.
+- **Prepared statements and PgBouncer.** We run PgBouncer in transaction mode for connection pooling. One gotcha: Drizzle's prepared statements do not work with PgBouncer's transaction mode because prepared statements are scoped to a connection, and PgBouncer rotates connections between transactions. We disable prepared statements in the Drizzle connection config with `prepare: false`.
+
+The actual query migration was mechanical — Drizzle's API is intuitive enough that most conversions were one-to-one.
 
 ## When Prisma Still Makes Sense
 
 I would still recommend Prisma for teams that want a batteries-included ORM with excellent documentation and a gentler learning curve. If your queries are mostly simple CRUD, the differences are marginal.
 
 But if you are building something with complex data access patterns, care about bundle size, or just prefer staying close to SQL while keeping type safety -- Drizzle is the better tool. For HyrecruitAI, it was the right call.
+
+For how we optimize the queries Drizzle generates in production, see [PostgreSQL Performance Patterns We Use at HyrecruitAI](/blog/postgres-performance-patterns).
