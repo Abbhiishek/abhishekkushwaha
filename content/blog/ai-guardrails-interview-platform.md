@@ -2,7 +2,12 @@
 title: "AI Guardrails for Interview Platforms: Hallucination Detection, Bias Filtering, and Jailbreak Prevention"
 description: "How we built a layered guardrail system at HyrecruitAI to catch hallucinated feedback, biased evaluations, and adversarial prompts before they reach candidates or recruiters."
 date: "2026-04-11"
-tags: ai-guardrails, llm, safety, interviews, typescript
+tags:
+  - ai-guardrails
+  - llm
+  - safety
+  - interviews
+  - typescript
 coverImage: /thumbnail.jpg
 featured: false
 ---
