@@ -279,7 +279,7 @@ Pattern matching alone isn't enough — novel jailbreaks evolve. Our longer-term
 ```typescript
 // lib/prompts/sanitize.ts
 export function sanitizeCandidateInput(raw: string): string {
-  // Strip non-printable characters
+  // Strip non-ASCII characters and ASCII control characters, except \n, \r, and \t
   const cleaned = raw.replace(/[^\x20-\x7E\n\r\t]/g, '');
   // Truncate to 2000 chars per field — limits injection surface
   return cleaned.slice(0, 2000);
