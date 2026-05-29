@@ -1,3 +1,16 @@
+import { pageSocialMetadata } from "@/lib/og-metadata"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+    title: "Education",
+    description: "Computer science education and the foundation behind my AI product engineering work.",
+    ...pageSocialMetadata({
+        page: "education",
+        title: "Education",
+        description: "Computer science education and the foundation behind my AI product engineering work.",
+    }),
+}
+
 const educations = [
     {
         degree: 'Bachelor Degree in Computer Science & Engineering',

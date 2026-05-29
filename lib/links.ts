@@ -57,8 +57,8 @@ export const links: Links = [
   },
   {
     name: "Hashnode",
-    url: "https://h.abhishekkushwaha.me/",
-    value: "@abbhishek",
+    url: "https://abhishekkushwaha.vercel.app/blog",
+    value: "blog",
     icon: SiHashnode,
   },
 ];

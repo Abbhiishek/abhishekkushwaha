@@ -1,5 +1,6 @@
 import { AnimatedPage } from "@/components/AnimatedList"
 import { FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import { gadgets, stack, tools, type TechItem, type TechSection } from "@/lib/tech"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
@@ -10,6 +11,11 @@ export const metadata: Metadata = {
     title: "Tech & gadgets",
     description: "Hardware, software, and the daily tooling I use to build AI product systems.",
     keywords: "tech, gadgets, tools, ai tools, llm tools, vector databases, tech stack",
+    ...pageSocialMetadata({
+        page: "tech",
+        title: "Tech & gadgets",
+        description: "Hardware, software, and the daily tooling I use to build AI product systems.",
+    }),
 }
 
 const groups: { id: string; label: string; blurb: string; sections: TechSection[] }[] = [

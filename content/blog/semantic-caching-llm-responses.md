@@ -3,7 +3,7 @@ title: "Semantic Caching for AI Products: Cutting LLM Cost Without Breaking Qual
 description: "How to design a semantic cache for LLM-heavy systems using exact cache keys, embeddings, pgvector, Redis, thresholds, and quality checks."
 date: "2026-04-08"
 tags: llm, semantic-cache, pgvector, redis, cost-optimization
-coverImage: /thumbnail.jpg
+coverImage: /me.webp
 featured: true
 ---
 

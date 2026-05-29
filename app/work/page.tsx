@@ -1,4 +1,5 @@
 import { AnimatedGrid, AnimatedItem, AnimatedPage } from "@/components/AnimatedList"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import { workExperiences, type WorkExperience } from "@/lib/work"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
@@ -7,6 +8,11 @@ import Image from "next/image"
 
 export const metadata: Metadata = {
     title: "Work",
+    ...pageSocialMetadata({
+        page: "work",
+        title: "Work",
+        description: "AI product engineering work across voice agents, LLM evaluation, real-time video, and AI SaaS infrastructure.",
+    }),
     description: "AI product engineering work — voice agents, LLM evaluation, real-time video, semantic caching, and the multi-tenant SaaS plumbing behind them.",
 }
 

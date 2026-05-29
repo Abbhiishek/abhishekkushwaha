@@ -1,4 +1,5 @@
 import { links } from "@/lib/links";
+import { pageSocialMetadata } from "@/lib/og-metadata";
 import { Metadata } from "next";
 import Link from "next/link";
 
@@ -7,6 +8,11 @@ export const metadata: Metadata = {
     title: "Links 📎",
     description: "All my profile links to find me on the web.",
     keywords: "links abhishek kushwaha github",
+    ...pageSocialMetadata({
+        page: "links",
+        title: "Links",
+        description: "All my profile links to find me on the web.",
+    }),
 }
 
 

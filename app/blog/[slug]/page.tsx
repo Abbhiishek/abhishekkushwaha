@@ -1,6 +1,7 @@
 import { AnimatedPage } from "@/components/AnimatedList"
 import BlogCTA from "@/components/blog/BlogCTA"
 import { getAllBlogPosts, getBlogPostBySlug } from "@/lib/blogs"
+import { blogSocialMetadata } from "@/lib/og-metadata"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { ArrowLeft, Calendar, Clock } from "lucide-react"
@@ -26,6 +27,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: post.title,
         description: post.description,
         keywords: post.tags.join(", "),
+        ...blogSocialMetadata({
+            title: post.title,
+            description: post.description,
+        }),
     }
 }
 

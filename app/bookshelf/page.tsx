@@ -1,6 +1,7 @@
 import { AnimatedPage } from "@/components/AnimatedList"
 import { FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import { bookshelf, getBooksByStatus, type BookItem, type ReadingStatus } from "@/lib/bookshelf"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { ArrowUpRight } from "lucide-react"
@@ -10,6 +11,11 @@ import Image from "next/image"
 export const metadata: Metadata = {
     title: "Bookshelf",
     description: "Books, blogs, and papers that shape how I think about AI systems, engineering, and the craft.",
+    ...pageSocialMetadata({
+        page: "bookshelf",
+        title: "Bookshelf",
+        description: "Books, blogs, and papers that shape how I think about AI systems, engineering, and the craft.",
+    }),
 }
 
 const sections: { status: ReadingStatus; index: string; label: string; sublabel: string }[] = [

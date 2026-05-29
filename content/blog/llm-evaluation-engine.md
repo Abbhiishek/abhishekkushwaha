@@ -3,7 +3,7 @@ title: "Designing LLM Evaluation Systems: Rubrics, Consistency, and Guardrails"
 description: "A practical blueprint for evaluating interview answers with LLMs: structured rubrics, multi-pass scoring, prompt versioning, bias checks, and guardrails that make the system safer."
 date: "2026-04-10"
 tags: llm, evaluation, guardrails, prompt-engineering, ai-engineering
-coverImage: /thumbnail.jpg
+coverImage: /me.webp
 featured: true
 ---
 

@@ -1,4 +1,5 @@
 import { AnimatedGrid, AnimatedItem, AnimatedPage } from "@/components/AnimatedList"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import { projects } from "@/lib/project"
 import type { Project } from "@/lib/types"
 import { cn } from "@/utils/cn"
@@ -13,6 +14,11 @@ export const metadata: Metadata = {
     description:
         "Side systems, OSS, and experiments across portfolio SaaS, API endpoints, developer communities, and CLI tools.",
     keywords: "projects, open-source, developer tooling, cli, api design",
+    ...pageSocialMetadata({
+        page: "projects",
+        title: "Systems & Experiments",
+        description: "Side systems, OSS, and experiments across portfolio SaaS, API endpoints, developer communities, and CLI tools.",
+    }),
 }
 
 const statusDot: Record<Project["status"], string> = {

@@ -1,4 +1,5 @@
 import { AnimatedPage } from "@/components/AnimatedList"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { ArrowUpRight, Mic } from "lucide-react"
@@ -7,6 +8,11 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
     title: "Talks, notes & field demos",
+    ...pageSocialMetadata({
+        page: "talks",
+        title: "Talks",
+        description: "Practitioner talks and notes on building real-time AI systems.",
+    }),
     description: "Practitioner talks and notes on building real-time AI systems — voice agents, LLM evaluation, guardrails, and the production realities behind them.",
 }
 

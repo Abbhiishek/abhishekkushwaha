@@ -3,7 +3,7 @@ title: "Operating a Multi-Tenant AI SaaS: Isolation, Rate Limits, and Product Sa
 description: "The backend patterns I care about in AI SaaS: tenant resolution, data isolation, usage limits, billing boundaries, and infrastructure decisions that keep AI features safe to scale."
 date: "2026-04-05"
 tags: saas, multi-tenant, ai-infrastructure, rate-limiting, backend
-coverImage: /thumbnail.jpg
+coverImage: /me.webp
 featured: true
 ---
 

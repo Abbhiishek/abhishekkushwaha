@@ -1,5 +1,7 @@
 import NavbarLayout from '@/components/NavbarLayout';
 import { Noise } from '@/components/ui/noise';
+import { ogImageUrl } from '@/lib/og-metadata';
+import { getSiteUrl } from '@/lib/site';
 import { cn } from '@/utils/cn';
 import type { Metadata } from 'next';
 import { ThemeProvider } from "next-themes";
@@ -10,9 +12,17 @@ const description =
   "AI product engineer building real-time intelligent systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and the multi-tenant SaaS plumbing behind them. Currently leading engineering at HyrecruitAI."
 const name = 'Abhishek Kushwaha'
 const tagline = 'AI product engineer · Real-time intelligent systems'
+const homeOgImage = ogImageUrl({
+  title: 'home@abhishekkushwaha',
+  eyebrow: 'AI product engineer',
+  background: 'HOME',
+})
 
+
+const siteUrl = getSiteUrl()
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: `${name} — ${tagline}`,
     absolute: `${name} — AI product engineer`,
@@ -49,12 +59,12 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     emails: ['abhishekkushwaha1479@gmail.com'],
-    url: 'https://abhishekkushwaha.me',
+    url: siteUrl,
     images: [
       {
-        url: 'https://abhishekkushwaha.me/thumbnail.jpg',
-        width: 800,
-        height: 600,
+        url: homeOgImage,
+        width: 1200,
+        height: 630,
         alt: `${name} — AI product engineer`,
       },
     ],
@@ -64,6 +74,7 @@ export const metadata: Metadata = {
     title: `${name} — ${tagline}`,
     description,
     creator: '@abbhishekstwt',
+    images: [homeOgImage],
   },
   robots: {
     index: true,

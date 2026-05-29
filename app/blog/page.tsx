@@ -1,6 +1,7 @@
 import { AnimatedPage } from "@/components/AnimatedList"
 import { FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import { getAllBlogPosts } from "@/lib/blogs"
+import { pageSocialMetadata } from "@/lib/og-metadata"
 import type { BlogPost } from "@/lib/types"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
@@ -11,6 +12,11 @@ import Link from "next/link"
 export const metadata: Metadata = {
     title: "Blog",
     description: "Four focused essays on real-time AI systems, LLM evaluation, semantic caching, and multi-tenant AI SaaS.",
+    ...pageSocialMetadata({
+        page: "blogs",
+        title: "Blog",
+        description: "Four focused essays on real-time AI systems, LLM evaluation, semantic caching, and multi-tenant AI SaaS.",
+    }),
 }
 
 export default function Blogs() {

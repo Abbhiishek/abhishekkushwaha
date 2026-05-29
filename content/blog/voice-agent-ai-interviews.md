@@ -3,7 +3,7 @@ title: "Building a Real-Time AI Interviewer: Voice, Turn-Taking, and Latency Bud
 description: "How I think about real-time AI voice systems in production: audio streaming, speech detection, transcription, LLM turn-taking, and the latency budget that makes an agent feel alive."
 date: "2026-04-12"
 tags: voice-agent, realtime-ai, websockets, llm, ai-engineering
-coverImage: /thumbnail.jpg
+coverImage: /me.webp
 featured: true
 ---
 

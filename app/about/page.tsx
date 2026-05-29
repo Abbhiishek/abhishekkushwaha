@@ -1,5 +1,7 @@
 import { AnimatedPage } from "@/components/AnimatedList"
 import { FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
+import { pageSocialMetadata } from "@/lib/og-metadata"
+import { profileImagePath } from "@/lib/site"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { ArrowUpRight, Mail } from "lucide-react"
@@ -11,6 +13,11 @@ export const metadata: Metadata = {
     title: "About",
     description: "Abhishek Kushwaha — AI product engineer building real-time intelligent systems. Writing, talks, community, and the work behind it.",
     keywords: "about, abhishek kushwaha, ai product engineer, llm evaluation, voice agents, webrtc, multi-tenant saas",
+    ...pageSocialMetadata({
+        page: "about",
+        title: "About",
+        description: "Abhishek Kushwaha - AI product engineer building real-time intelligent systems.",
+    }),
 }
 
 const today = [
@@ -105,7 +112,7 @@ export default function About() {
                     <FadeInView className="lg:col-span-5">
                         <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-100 dark:bg-zinc-900">
                             <Image
-                                src="/thumbnail.jpg"
+                                src={profileImagePath}
                                 alt="Abhishek Kushwaha"
                                 fill
                                 className="object-cover"
