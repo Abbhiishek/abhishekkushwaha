@@ -4,8 +4,7 @@ import { actions } from "@/lib/actions";
 import { KBarProvider } from "kbar";
 import { usePathname } from "next/navigation";
 import Palette from "./CMD";
-import MobileNavBar from "./MobileNav";
-import NavBar from "./Nav";
+import NavigationDock from "./NavigationDock";
 
 function NavbarLayout({ children }: { children: React.ReactNode }) {
 
@@ -14,13 +13,8 @@ function NavbarLayout({ children }: { children: React.ReactNode }) {
         <KBarProvider actions={actions}>
             <main className="flex selection:bg-brand-magenta selection:text-white flex-col overflow-x-hidden min-h-screen items-center max-h-auto relative">
                 <Palette />
-                <div className="flex w-full h-full max-w-7xl mx-auto px-4 lg:px-8 lg:pl-16">
-                    <div className="w-[6%] fixed left-0 h-full z-50 hidden lg:block md:block">
-                        <NavBar path={currentRoute} />
-                    </div>
-                    <div className="fixed bottom-0 w-full z-50 block lg:hidden md:hidden px-4 pb-3">
-                        <MobileNavBar path={currentRoute} />
-                    </div>
+                <NavigationDock path={currentRoute} />
+                <div className="flex w-full h-full max-w-7xl mx-auto px-4 pb-24 lg:px-8 lg:pl-20 lg:pb-0">
                     {children}
                 </div>
             </main>

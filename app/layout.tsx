@@ -1,5 +1,7 @@
 import NavbarLayout from '@/components/NavbarLayout';
 import { Noise } from '@/components/ui/noise';
+import { ogImageUrl } from '@/lib/og-metadata';
+import { getSiteUrl } from '@/lib/site';
 import { cn } from '@/utils/cn';
 import type { Metadata } from 'next';
 import { ThemeProvider } from "next-themes";
@@ -7,74 +9,72 @@ import './globals.css';
 
 
 const description =
-  'CTO & Co-founder at HyrecruitAI. Engineering leader building AI-powered hiring infrastructure, scaling teams, and shipping products from zero to production.'
+  "AI product engineer building real-time intelligent systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and the multi-tenant SaaS plumbing behind them. Currently leading engineering at HyrecruitAI."
 const name = 'Abhishek Kushwaha'
+const tagline = 'AI product engineer · Real-time intelligent systems'
+const homeOgImage = ogImageUrl({
+  title: 'home@abhishekkushwaha',
+  eyebrow: 'AI product engineer',
+  background: 'HOME',
+})
 
+
+const siteUrl = getSiteUrl()
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: name,
-    absolute: `${name} | 💻`,
+    default: `${name} — ${tagline}`,
+    absolute: `${name} — AI product engineer`,
     template: `%s | ${name}`,
   },
   description,
   keywords: [
     'Abhishek Kushwaha',
-    'Abhishek',
-    'Kushwaha',
+    'AI product engineer',
+    'AI engineer portfolio',
+    'real-time AI systems',
+    'voice agents',
+    'LLM evaluation',
+    'AI guardrails',
+    'semantic caching',
+    'pgvector',
+    'embeddings',
+    'WebRTC engineer',
+    'multi-tenant SaaS',
+    'Next.js engineer',
+    'TypeScript AI',
+    'product engineer',
+    'senior AI engineer',
+    'HyrecruitAI',
     'Abhishek Kushwaha Portfolio',
     'Abhishek Kushwaha Blog',
-    'Abhishek Kushwaha Resume',
     'Abhishek Kushwaha Projects',
-    'Abhishek Kushwaha Contact',
-    'Abhishek Kushwaha About',
-    'Abhishek Kushwaha Skills',
-    'Abhishek Kushwaha Experience',
-    'Abhishek Kushwaha Education',
-    'Abhishek Kushwaha Work',
-    'Abhishek Kushwaha',
-    "full-stack developer portfolio",
-    "web application developer portfolio",
-    "front-end developer portfolio",
-    "back-end developer portfolio",
-    "javascript developer portfolio",
-    "react developer portfolio",
-    "node.js developer portfolio",
-    "angular developer portfolio",
-    "vue.js developer portfolio",
-    "full-stack web development portfolio",
-    "single-page application developer portfolio",
-    "progressive web app developer portfolio",
-    "responsive web design portfolio",
-    "web application development portfolio",
-    "web development case studies",
-    "web developer projects showcase",
-    "web developer skills and experience",
-    "web developer about me",
-    "web developer resume",
+    'Abhishek Kushwaha Writing',
   ],
   applicationName: name,
   openGraph: {
-    title: name,
+    title: `${name} — ${tagline}`,
     description,
     type: 'website',
     locale: 'en_US',
     emails: ['abhishekkushwaha1479@gmail.com'],
-    url: 'https://abhishekkushwaha.me',
+    url: siteUrl,
     images: [
       {
-        url: 'https://abhishekkushwaha.me/thumbnail.jpg',
-        width: 800,
-        height: 600,
-        alt: name,
+        url: homeOgImage,
+        width: 1200,
+        height: 630,
+        alt: `${name} — AI product engineer`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: name,
+    title: `${name} — ${tagline}`,
     description,
     creator: '@abbhishekstwt',
+    images: [homeOgImage],
   },
   robots: {
     index: true,
@@ -94,8 +94,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={cn(`relative overflow-hidden dark:bg-brand-dark font-sans`)}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={cn(`relative overflow-hidden bg-white text-zinc-900 dark:bg-brand-dark dark:text-zinc-100 font-sans transition-colors duration-200`)}>
         <ThemeProvider attribute="class">
           <Noise />
           <NavbarLayout>

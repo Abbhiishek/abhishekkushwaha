@@ -7,6 +7,10 @@ export interface WorkExperience {
     location: string
     url?: string
     description: string[]
+    owned?: string[]
+    systems?: string[]
+    constraints?: string[]
+    impact?: string[]
 }
 
 export const workExperiences: WorkExperience[] = [
@@ -19,8 +23,34 @@ export const workExperiences: WorkExperience[] = [
         location: "India · Remote",
         url: "https://hyrecruitai.com",
         description: [
-            "Leading engineering and product development for an AI-powered interview and assessment platform. Architecting the full technical stack including real-time video pipeline, LLM evaluation engine, and multi-tenant SaaS infrastructure.",
-            "Scaled the engineering team from 2 to 15 engineers. Established engineering processes including CI/CD, RFC-driven development, and blameless postmortems.",
+            "Leading engineering for an AI-powered interview platform. The job covers the whole stack — voice pipelines, LLM evaluation, multi-tenant SaaS, billing, and the team that ships it all.",
+        ],
+        owned: [
+            "Entire engineering org and the technical roadmap",
+            "AI product surface — voice agent, evaluation, guardrails",
+            "Infrastructure — multi-tenant SaaS, observability, on-call",
+            "Hiring and engineering process — RFCs, code review, postmortems",
+        ],
+        systems: [
+            "Real-time voice agent (Whisper + WebSocket + LLM turn-taking)",
+            "LLM evaluation engine with rubric pipelines",
+            "Multi-layer guardrails between LLM and candidate UI",
+            "pgvector + Redis semantic cache for LLM inference",
+            "Embedding-based candidate-to-job matching with reranker",
+            "WebRTC video stack with TURN/STUN and recording",
+            "Multi-tenant data isolation and per-tenant configuration",
+        ],
+        constraints: [
+            "Sub-second voice turn latency or candidates drop the call",
+            "Zero tolerance for bias or PII leaks in candidate-facing AI",
+            "LLM costs that scale linearly with active interview load",
+            "Tenant isolation strong enough for enterprise procurement",
+        ],
+        impact: [
+            "Scaled the engineering team from 2 to 15 engineers",
+            "Cut LLM inference cost 58% via two-layer semantic caching",
+            "Lifted interview completion rate from 34% to 71% after shipping voice",
+            "Brought top-10 candidate match precision from 34% to 81%",
         ],
     },
     {
@@ -32,7 +62,7 @@ export const workExperiences: WorkExperience[] = [
         location: "Bengaluru, Karnataka, India · Remote",
         url: "https://keploy.io",
         description: [
-            "Worked on developer advocacy and community engagement for Keploy's open-source API testing platform. Created technical content, demos, and tutorials to help developers adopt the platform.",
+            "Drove developer advocacy and community engagement for Keploy's open-source API testing platform. Wrote technical content and built reference demos that helped developers adopt the product.",
         ],
     },
     {
@@ -44,8 +74,8 @@ export const workExperiences: WorkExperience[] = [
         location: "India · Remote",
         url: "https://www.linkedin.com/company/trainingmug/",
         description: [
-            "Improved dashboard performance by 50% and reduced API calls by 90%. Built an AI chat support system using Azure AI, integrating learner data and course content for personalized assistance.",
-            "Developed a progress tracking system for daily tasks aligned with student profiles, and an online IDE with strict testcase evaluation for playground projects.",
+            "Improved dashboard performance by 50% and reduced API calls by 90%. Built an AI chat support system on Azure AI that joined learner data and course content for personalized assistance.",
+            "Shipped a progress-tracking system aligned with student profiles, and an online IDE with strict testcase evaluation for playground projects.",
         ],
     },
     {
@@ -56,7 +86,7 @@ export const workExperiences: WorkExperience[] = [
         duration: "May 2024",
         location: "Virtual",
         description: [
-            "Set up a local dev environment and fixed broken repository files. Used JPMorgan Chase's open-source Perspective library to generate live graphs displaying data feeds for traders.",
+            "Set up a local dev environment and fixed broken repository files. Used JPMorgan Chase's open-source Perspective library to render live trading data feeds as actionable charts.",
         ],
     },
     {
@@ -67,7 +97,7 @@ export const workExperiences: WorkExperience[] = [
         duration: "Nov 2023 - Feb 2024",
         location: "India",
         description: [
-            "Designed and developed a fully functional ecommerce website for Kishalay Organics, implementing product management, payment processing, and customer support features.",
+            "Designed and built a full ecommerce site for Kishalay Organics — product management, payment processing, and customer support, end to end.",
         ],
     },
     {
@@ -78,8 +108,8 @@ export const workExperiences: WorkExperience[] = [
         duration: "Jul 2022 - Apr 2023",
         location: "Kolkata, India",
         description: [
-            "Built and led a vibrant tech community of 400+ students. Organized regular events, workshops, and hackathons in collaboration with other GDSC Leads and Google Developer Experts.",
-            "Mentored student developers and liaised with industry experts to bring real-world insights and best practices to the campus community.",
+            "Built and led a tech community of 400+ students. Ran workshops, hackathons, and study groups in collaboration with other GDSC Leads and Google Developer Experts.",
+            "Mentored student developers and brought in industry practitioners so the community had real-world context, not just textbook material.",
         ],
     },
     {
@@ -90,7 +120,7 @@ export const workExperiences: WorkExperience[] = [
         duration: "May 2022 - Jan 2023",
         location: "India · Remote",
         description: [
-            "Created high-quality tutorials, articles, and guides on Python programming, helping readers learn new concepts and improve their skills.",
+            "Wrote tutorials, articles, and guides on Python that helped readers move from beginner to intermediate skill levels.",
         ],
     },
 ]

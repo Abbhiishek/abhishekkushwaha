@@ -13,13 +13,23 @@ export interface BlogPostWithContent extends BlogPost {
     html: string
 }
 
+export type ProjectLayout = "product" | "developer-ref" | "editorial" | "terminal"
+
+export type ProjectStatus = "shipped" | "ongoing" | "archived" | "sunset"
+
 export interface Project {
+    slug: string
     title: string
+    tagline: string
     description: string
+    judgment: string
+    stack: string[]
     image: string
-    gridSpan: string
-    backgroundColor: string
-    imageposition: string
-    url: string
+    accent: string
+    layout: ProjectLayout
+    status: ProjectStatus
+    period: string
+    githubUrl?: string
+    liveUrl?: string
     featured?: boolean
 }

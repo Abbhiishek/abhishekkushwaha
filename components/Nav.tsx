@@ -10,15 +10,9 @@ export default function NavBar({ path }: { path: string }) {
     const { theme, setTheme } = useTheme();
     const { query } = useKBar();
     const [mounted, setMounted] = useState(false);
-    const [tooltipVisibility, setTooltipVisibility] = useState([
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-    ]);
+    const [tooltipVisibility, setTooltipVisibility] = useState(() =>
+        NavbarItems.map(() => false)
+    );
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
     useEffect(() => { setMounted(true); }, []);
@@ -49,6 +43,7 @@ export default function NavBar({ path }: { path: string }) {
                                         setTooltipVisibility(temp);
                                     }}
                                     onClick={() => router.push(item.slug)}
+                                    aria-label={item.name}
                                 >
                                     <div className="p-2">
                                         <item.icon size="1rem" className="text-brand-pink" />
@@ -74,6 +69,7 @@ export default function NavBar({ path }: { path: string }) {
                                         setTooltipVisibility(temp);
                                     }}
                                     onClick={() => router.push(item.slug)}
+                                    aria-label={item.name}
                                 >
                                     <div className="p-2">
                                         <item.icon size="1rem" className="dark:text-zinc-100 text-zinc-700" />
@@ -93,6 +89,7 @@ export default function NavBar({ path }: { path: string }) {
                         <button
                             className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-200 hover:bg-zinc-300 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out hover:ring-1 hover:ring-brand-purple/30"
                             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                            aria-label="Toggle theme"
                         >
                             <div className="p-2 dark:text-zinc-100 text-zinc-700">
                                 {theme === "dark" ? <Sun /> : <Moon />}
@@ -103,6 +100,7 @@ export default function NavBar({ path }: { path: string }) {
                         className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-200 hover:bg-zinc-300 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out hover:ring-1 hover:ring-brand-purple/30"
                         //   onClick={() => router.push(item.slug)}
                         onClick={query.toggle}
+                        aria-label="Open command menu"
                     >
                         <div className="p-2">
                             <Command size="1rem" className="dark:text-zinc-100 text-zinc-700" />

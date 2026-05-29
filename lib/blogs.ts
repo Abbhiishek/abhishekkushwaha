@@ -1,5 +1,6 @@
 import path from "path"
 import { estimateReadingTime, getMarkdownFiles, parseMarkdownFile } from "./markdown"
+import { profileImagePath } from "./site"
 import type { BlogPost, BlogPostWithContent } from "./types"
 
 const BLOG_DIR = path.join(process.cwd(), "content", "blog")
@@ -14,7 +15,7 @@ function fileToBlogPost(filePath: string): BlogPost {
         description: frontmatter.description ?? "",
         date: frontmatter.date ?? "",
         tags: frontmatter.tags ? frontmatter.tags.split(",").map((t) => t.trim()) : [],
-        coverImage: frontmatter.coverImage ?? "/thumbnail.jpg",
+        coverImage: frontmatter.coverImage ?? profileImagePath,
         featured: frontmatter.featured === "true",
         readingTime: estimateReadingTime(raw),
     }
@@ -36,7 +37,7 @@ export function getBlogPostBySlug(slug: string): BlogPostWithContent | null {
             description: frontmatter.description ?? "",
             date: frontmatter.date ?? "",
             tags: frontmatter.tags ? frontmatter.tags.split(",").map((t) => t.trim()) : [],
-            coverImage: frontmatter.coverImage ?? "/thumbnail.jpg",
+            coverImage: frontmatter.coverImage ?? profileImagePath,
             featured: frontmatter.featured === "true",
             readingTime: estimateReadingTime(raw),
             html,

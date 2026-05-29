@@ -1,346 +1,182 @@
 ---
-title: "Semantic Caching for LLM Responses: Cutting Inference Costs by 58%"
-description: "How we built a two-layer semantic cache using pgvector and Redis to dramatically reduce LLM API costs in a high-throughput interview platform."
-date: "2026-04-11"
-tags: llm, caching, pgvector, redis, cost-optimization
-coverImage: /thumbnail.jpg
-featured: false
+title: "Semantic Caching for AI Products: Cutting LLM Cost Without Breaking Quality"
+description: "How to design a semantic cache for LLM-heavy systems using exact cache keys, embeddings, pgvector, Redis, thresholds, and quality checks."
+date: "2026-04-08"
+tags: llm, semantic-cache, pgvector, redis, cost-optimization
+coverImage: /me.webp
+featured: true
 ---
 
-At HyrecruitAI, our LLM bill crossed $18,000/month by the time we hit 4,000 active interviews. The culprit wasn't complex reasoning tasks — it was thousands of nearly-identical prompts: "Evaluate this candidate's answer to: What is a REST API?" asked in 47 slightly different phrasings. We were paying for re-generation of answers we'd already produced.
+LLM cost problems usually arrive quietly.
 
-This is the story of how we built a semantic caching layer that brought that bill down to $7,600/month without any degradation in response quality.
+At first, every request goes straight to the model. That is fine when traffic is small. Then usage grows, prompts get longer, the product adds retries, and suddenly the invoice is large enough to become a roadmap item.
 
-## The Problem
+The instinct is to switch to a cheaper model. Sometimes that works. But for many AI products, the bigger opportunity is avoiding repeated work.
 
-Our interview engine processes candidate responses in real time. An interviewer bot asks a question, the candidate answers, and our system:
+Semantic caching is one of the highest-leverage patterns for LLM-heavy systems.
 
-1. Scores the answer (0–10, multi-dimensional)
-2. Generates follow-up probes based on gaps
-3. Produces a rationale the candidate can review post-interview
+## Why Exact Caching Is Not Enough
 
-Each of those is an LLM call. With 4,000 interviews/month and ~12 LLM calls per interview session, we were making ~48,000 LLM calls/month — and the vast majority of scoring calls had near-identical prompts differing only in minor lexical variation.
+Traditional caching works when two requests are exactly the same. LLM prompts rarely are.
 
-Exact-match caching (Redis key = SHA256 of prompt string) hit a rate of only 3.4%. The prompts were never byte-for-byte identical. We needed semantic similarity matching.
+These are different strings:
 
-```
-Total LLM calls/month:      48,000
-Exact cache hits:            1,632 (3.4%)
-Redundant near-identical:   ~28,000 (estimated)
-Monthly API cost:           $18,400
+```txt
+Evaluate this answer for a backend engineer role.
+Evaluate the candidate response for a backend engineering role.
+Score this backend interview answer.
 ```
 
-## The Solution: Two-Layer Semantic Cache
+But in many product contexts, they may represent the same underlying request.
 
-We built a two-tier system:
+An exact cache key will miss all three. A semantic cache can recognize that they are similar enough to reuse a previous response if the product allows it.
 
-- **Layer 1 — Redis exact cache**: SHA256 hash of normalized prompt string. Fast, zero-cost lookup. Hit rate stays low but it's essentially free.
-- **Layer 2 — pgvector semantic cache**: Embed the prompt → cosine similarity search against cached embeddings → return cached response if similarity ≥ threshold.
+That last phrase is important: if the product allows it. Semantic caching is not safe for every LLM call.
 
-If both miss, we call the LLM, then write to both layers asynchronously.
+## Where Semantic Caching Works
 
-### Data Model
+Good candidates:
+
+- repeated evaluation prompts
+- FAQ-style assistant answers
+- classification tasks
+- rubric-based scoring
+- summarization of similar structured inputs
+- generated explanations for common cases
+
+Bad candidates:
+
+- personalized advice with sensitive user context
+- legal, medical, or financial outputs
+- anything where small input changes must change the answer
+- high-creativity generation
+- model calls that include fresh user-specific data
+
+The engineering judgment is deciding where similarity means reuse and where similarity is dangerous.
+
+## A Two-Layer Cache
+
+I prefer a two-layer design.
+
+Layer one is an exact cache:
+
+```txt
+normalized prompt -> hash -> Redis
+```
+
+Layer two is a semantic cache:
+
+```txt
+normalized prompt -> embedding -> pgvector similarity search
+```
+
+The exact cache is fast and cheap. The semantic cache is slower but captures near-duplicates.
+
+The flow:
+
+1. Normalize the prompt.
+2. Look for exact Redis hit.
+3. If it misses, generate an embedding.
+4. Search pgvector for similar cached prompts.
+5. Reuse only if similarity crosses the threshold.
+6. If no safe hit exists, call the model.
+7. Store the response asynchronously.
+
+```ts
+type CacheResult<T> =
+  | { source: "exact"; value: T }
+  | { source: "semantic"; value: T; similarity: number }
+  | { source: "miss" };
+```
+
+This shape forces callers to know where the response came from.
+
+## The Data Model
+
+A simple table is enough to start:
 
 ```sql
 CREATE TABLE llm_response_cache (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  prompt_hash  TEXT NOT NULL,
-  prompt_text  TEXT NOT NULL,
-  embedding    vector(1536) NOT NULL,
-  response     JSONB NOT NULL,
-  model        TEXT NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT now(),
-  hit_count    INTEGER DEFAULT 0,
-  last_hit_at  TIMESTAMPTZ
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prompt_hash TEXT NOT NULL,
+  prompt_text TEXT NOT NULL,
+  embedding vector(1536) NOT NULL,
+  response JSONB NOT NULL,
+  model TEXT NOT NULL,
+  task_type TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  hit_count INTEGER DEFAULT 0
 );
 
-CREATE INDEX ON llm_response_cache
-  USING ivfflat (embedding vector_cosine_ops)
-  WITH (lists = 100);
-
-CREATE INDEX ON llm_response_cache (prompt_hash);
+CREATE INDEX llm_response_cache_embedding_idx
+ON llm_response_cache
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
 ```
 
-The `response` column stores the full LLM response as JSONB — including token counts, finish reason, and structured output — not just the text. This lets callers use the cache hit transparently.
+I would include `task_type` from the beginning. Evaluation prompts should not match support prompts. Candidate feedback should not match internal scoring. A semantic cache needs boundaries.
 
-### TypeScript Cache Client
+## Thresholds Are Product Decisions
 
-```typescript
-import { createClient } from "redis";
-import { openai } from "@/lib/openai";
-import { db } from "@/lib/db";
-import crypto from "crypto";
+A similarity threshold is not a magic constant. It should be calibrated.
 
-interface CacheEntry {
-  response: LLMResponse;
-  source: "exact" | "semantic" | "miss";
-  similarity?: number;
-}
+For one product, 0.90 may be safe. For another, even 0.97 may be risky. The threshold depends on:
 
-interface LLMResponse {
-  content: string;
-  usage: { prompt_tokens: number; completion_tokens: number };
-  model: string;
-  cached: boolean;
-}
+- model embedding quality
+- prompt length
+- task type
+- output sensitivity
+- acceptable error rate
+- whether humans review the result
 
-const redis = createClient({ url: process.env.REDIS_URL });
+I like starting conservative, logging would-have-hit cases, and reviewing them offline before enabling reuse.
 
-const SIMILARITY_THRESHOLD = 0.94;
-const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+Useful logs:
 
-function normalizePrompt(prompt: string): string {
-  return prompt
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
+- prompt hash
+- candidate match hash
+- similarity score
+- task type
+- model
+- accepted or rejected
+- downstream quality signal if available
 
-async function getEmbedding(text: string): Promise<number[]> {
-  const resp = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text,
-  });
-  return resp.data[0].embedding;
-}
+The cache should earn trust before it saves money.
 
-export async function cachedLLMCall(
-  prompt: string,
-  options: { model: string; systemPrompt?: string }
-): Promise<CacheEntry> {
-  const normalized = normalizePrompt(prompt);
-  const hash = crypto.createHash("sha256").update(normalized).digest("hex");
+## Quality Checks
 
-  // Layer 1: exact Redis hit
-  const redisKey = `llm:exact:${hash}`;
-  const exactHit = await redis.get(redisKey);
-  if (exactHit) {
-    return {
-      response: { ...JSON.parse(exactHit), cached: true },
-      source: "exact",
-    };
-  }
+The dangerous failure mode is a plausible cached response for a meaningfully different input.
 
-  // Layer 2: semantic pgvector hit
-  const embedding = await getEmbedding(normalized);
-  const vectorLiteral = `[${embedding.join(",")}]`;
+Guardrails help:
 
-  const semanticHit = await db.query<{
-    id: string;
-    response: LLMResponse;
-    similarity: number;
-  }>(
-    `SELECT id, response, 1 - (embedding <=> $1::vector) AS similarity
-     FROM llm_response_cache
-     WHERE 1 - (embedding <=> $1::vector) >= $2
-       AND model = $3
-     ORDER BY similarity DESC
-     LIMIT 1`,
-    [vectorLiteral, SIMILARITY_THRESHOLD, options.model]
-  );
+- require same task type
+- require same model family or compatible model
+- require same output schema version
+- exclude user-specific fields from reusable prompts
+- store cache entries per tenant if data can leak
+- add TTLs for fast-changing domains
+- sample semantic hits for review
 
-  if (semanticHit.rows.length > 0) {
-    const hit = semanticHit.rows[0];
+For high-stakes tasks, I would also ask a small verifier model: "Is cached response A valid for new prompt B?" That adds cost, but it can still be cheaper than regenerating with a frontier model.
 
-    // Async update hit stats — don't block the response
-    db.query(
-      `UPDATE llm_response_cache
-       SET hit_count = hit_count + 1, last_hit_at = now()
-       WHERE id = $1`,
-      [hit.id]
-    ).catch(console.error);
+## Cost Is Not the Only Win
 
-    // Also backfill exact cache so future identical calls skip vector search
-    await redis.setEx(redisKey, CACHE_TTL_SECONDS, JSON.stringify(hit.response));
+Semantic caching reduces cost, but it also improves latency.
 
-    return {
-      response: { ...hit.response, cached: true },
-      source: "semantic",
-      similarity: hit.similarity,
-    };
-  }
+An LLM call might take 800ms to several seconds. A Redis hit is near-instant. A pgvector lookup is usually much faster than a generation call. For interactive products, that latency reduction can matter as much as the invoice.
 
-  // Cache miss — call LLM
-  const completion = await openai.chat.completions.create({
-    model: options.model,
-    messages: [
-      ...(options.systemPrompt
-        ? [{ role: "system" as const, content: options.systemPrompt }]
-        : []),
-      { role: "user", content: prompt },
-    ],
-  });
+There is also a reliability benefit. If the model provider has a transient issue, a cache hit can keep common flows alive.
 
-  const response: LLMResponse = {
-    content: completion.choices[0].message.content ?? "",
-    usage: {
-      prompt_tokens: completion.usage?.prompt_tokens ?? 0,
-      completion_tokens: completion.usage?.completion_tokens ?? 0,
-    },
-    model: options.model,
-    cached: false,
-  };
+## The Engineering Lesson
 
-  // Write to both layers asynchronously
-  Promise.all([
-    redis.setEx(redisKey, CACHE_TTL_SECONDS, JSON.stringify(response)),
-    db.query(
-      `INSERT INTO llm_response_cache
-         (prompt_hash, prompt_text, embedding, response, model)
-       VALUES ($1, $2, $3::vector, $4, $5)
-       ON CONFLICT (prompt_hash) DO NOTHING`,
-      [hash, normalized, vectorLiteral, JSON.stringify(response), options.model]
-    ),
-  ]).catch(console.error);
+Semantic caching is not just "put embeddings in Postgres."
 
-  return { response, source: "miss" };
-}
-```
+It is a product safety problem:
 
-### Threshold Calibration
+- What can be reused?
+- How similar is similar enough?
+- Where can data leak?
+- How do we know the cache is helping?
+- When should we bypass it?
 
-The 0.94 cosine similarity threshold wasn't chosen arbitrarily. We ran an offline evaluation:
-
-```typescript
-async function calibrateThreshold(
-  testPairs: Array<{ prompt: string; acceptableResponse: boolean }>
-) {
-  const thresholds = [0.88, 0.90, 0.92, 0.94, 0.96, 0.98];
-
-  for (const threshold of thresholds) {
-    let falsePositives = 0;
-    let truePositives = 0;
-
-    for (const pair of testPairs) {
-      const { source, similarity } = await cachedLLMCall(pair.prompt, {
-        model: "gpt-4o-mini",
-      });
-
-      if (source === "semantic" && similarity! >= threshold) {
-        if (pair.acceptableResponse) truePositives++;
-        else falsePositives++;
-      }
-    }
-
-    console.log({
-      threshold,
-      falsePositiveRate: falsePositives / testPairs.length,
-      hitRate: (truePositives + falsePositives) / testPairs.length,
-    });
-  }
-}
-```
-
-Results across 2,000 manually-labeled prompt pairs:
-
-| Threshold | False Positive Rate | Cache Hit Rate |
-|-----------|---------------------|----------------|
-| 0.88      | 8.2%                | 68%            |
-| 0.90      | 4.1%                | 61%            |
-| 0.92      | 1.9%                | 54%            |
-| **0.94**  | **0.6%**            | **47%**        |
-| 0.96      | 0.1%                | 31%            |
-| 0.98      | 0.0%                | 14%            |
-
-0.94 was the sweet spot: sub-1% false positive rate with nearly half of all calls served from cache.
-
-## The Iteration
-
-### First attempt: Redis only with prompt normalization
-
-Before going vector, we tried aggressive normalization: strip stopwords, lowercase, sort words alphabetically. Hit rate went from 3.4% → 11%. Not worth the engineering complexity, and we were losing semantic meaning in the process.
-
-### Second attempt: Embedding distance without pgvector
-
-We tried in-memory FAISS for the semantic search. It worked in development but exploded in memory on our 2GB Fly.io instances when the cache grew beyond ~50k entries. pgvector with an IVFFlat index solved this — search stays fast (< 15ms at p99) and storage is managed by Postgres.
-
-### Third attempt: Wrong embedding model
-
-We initially used `text-embedding-ada-002` for both embedding and retrieval. Switching to `text-embedding-3-small` cut embedding latency by 40% with comparable similarity quality on our domain-specific prompts. The embedding call is now faster than our Redis round-trip in some cases.
-
-### Cache invalidation
-
-We don't invalidate semantic cache entries — they're treated as immutable once written. If we change a system prompt (e.g., scoring rubric update), we bump a `cache_version` field in the query and only match entries from the same version. Old entries expire via a weekly cleanup job:
-
-```sql
-DELETE FROM llm_response_cache
-WHERE created_at < now() - interval '30 days'
-  AND hit_count = 0;
-```
-
-## Architecture / Flow Diagram
-
-```
-Incoming LLM Request
-        │
-        ▼
-┌───────────────────┐
-│  Normalize Prompt  │  lowercase, collapse whitespace
-└────────┬──────────┘
-         │
-         ▼
-┌────────────────────┐
-│  Redis Exact Cache  │──── HIT ────▶ return response (source: exact)
-│  (SHA256 hash key)  │
-└────────┬───────────┘
-         │ MISS
-         ▼
-┌──────────────────────┐
-│  Embed Prompt        │  text-embedding-3-small (~5ms)
-│  (OpenAI Embeddings) │
-└────────┬─────────────┘
-         │
-         ▼
-┌──────────────────────────────────┐
-│  pgvector Similarity Search       │
-│  cosine distance < 0.06 (≥ 0.94) │──── HIT ────▶ backfill Redis, return (source: semantic)
-│  IVFFlat index, top-1 match       │
-└────────┬─────────────────────────┘
-         │ MISS
-         ▼
-┌──────────────────────┐
-│  LLM API Call        │  gpt-4o-mini or gpt-4o
-│  (OpenAI Chat API)   │
-└────────┬─────────────┘
-         │
-         ▼
-┌──────────────────────────────────────────┐
-│  Async Write to Redis + pgvector          │
-│  (non-blocking, fire-and-forget w/ catch) │
-└──────────────────────────────────────────┘
-         │
-         ▼
-   Return response (source: miss)
-```
-
-## Learnings & Outcomes
-
-After 30 days in production:
-
-| Metric                    | Before    | After     |
-|---------------------------|-----------|-----------|
-| Monthly LLM API cost      | $18,400   | $7,600    |
-| Total cache hit rate      | 3.4%      | 51.3%     |
-| Exact hits                | 3.4%      | 4.1%      |
-| Semantic hits             | —         | 47.2%     |
-| Median response latency   | 1,240ms   | 38ms      |
-| p99 response latency      | 3,800ms   | 290ms     |
-| False positive incidents  | —         | 3 (all low-severity) |
-
-The latency improvement was a bonus we didn't fully anticipate. Semantic cache hits return in ~38ms vs. ~1,200ms for a real LLM call — a 32× speedup that made the whole interview flow feel noticeably more responsive.
-
-## Suggestions
-
-**Start with threshold calibration on your own data.** Generic blog posts say "use 0.85" or "use 0.9" — those numbers mean nothing without understanding your prompt distribution. Build a labeled test set of 500–1,000 prompt pairs before you deploy.
-
-**Embed at query time, not write time.** We initially thought we'd save money by batching embeddings on write. In practice, you need the embedding at read time anyway (for search), so do it once on the first miss and cache the result.
-
-**Don't block the hot path on cache writes.** Use fire-and-forget with proper error catching. A slow Postgres write should never make the user wait.
-
-**Track `source` on every call.** We emit a metric tagged `cache_source: exact | semantic | miss` on every call. This is how we noticed that our semantic threshold was initially too low (high false positive rate appeared in user complaints before we caught it in metrics).
-
-**Version your cache when prompts change.** A system prompt update changes the semantics of what a "good" cached response means. Add a `cache_version` column, bump it on significant prompt changes, and only match within the same version.
-
-**IVFFlat lists parameter matters.** We started with `lists = 20` (the pgvector default example) and saw 80ms p99 on the vector search. Tuning to `lists = 100` for our ~200k row table dropped that to 12ms. Rule of thumb: `lists ≈ sqrt(row_count)`.
-
-The two-layer approach (Redis for exact + pgvector for semantic) wasn't overcomplicated — it was the right tool for each layer. Redis is orders of magnitude faster for key lookups; pgvector handles the fuzzy similarity problem Postgres was designed for. Together, they handle what neither could alone.
+The strongest AI products are often built from unglamorous systems like this. They make the model cheaper, faster, and more reliable without making the user think about any of it.
