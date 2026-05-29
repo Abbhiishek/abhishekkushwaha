@@ -1,139 +1,180 @@
 ---
-title: "Building a Multi-Tenant SaaS with Next.js"
-description: "How we architected HyrecruitAI for multi-tenancy — tenant isolation, subdomain routing, and the shared vs isolated database decision."
-date: "2025-08-15"
-tags: nextjs, saas, multi-tenant, architecture
+title: "Operating a Multi-Tenant AI SaaS: Isolation, Rate Limits, and Product Safety"
+description: "The backend patterns I care about in AI SaaS: tenant resolution, data isolation, usage limits, billing boundaries, and infrastructure decisions that keep AI features safe to scale."
+date: "2026-04-05"
+tags: saas, multi-tenant, ai-infrastructure, rate-limiting, backend
 coverImage: /thumbnail.jpg
 featured: true
 ---
 
-# Building a Multi-Tenant SaaS with Next.js
+Most AI demos are single-player.
 
-When we launched HyrecruitAI, we had three early customers. Each one expected their own branded experience, isolated data, and custom configurations. We needed multi-tenancy from day one. Here is how we built it in Next.js.
+Production SaaS is not.
 
-## Tenant Resolution
+The moment companies start using an AI product, the hard problems become less about the model and more about isolation, permissions, costs, billing, observability, and operational control. The model call is only one part of the system. The SaaS around it decides whether the product can scale safely.
 
-Every request needs to resolve to a tenant before anything else happens. We support two patterns:
+This is how I think about multi-tenant AI SaaS architecture.
 
-- **Subdomain routing**: `acme.hyrecruit.ai` resolves to the Acme Corp tenant
-- **Custom domains**: `interviews.acme.com` via CNAME pointing to our infrastructure
+## Resolve the Tenant Early
 
-Tenant resolution happens in Next.js middleware, before the request reaches any page or API route:
+Every request should know which tenant it belongs to before it touches product logic.
 
-```typescript
-// middleware.ts
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host') ?? '';
-  const subdomain = extractSubdomain(hostname);
+Common patterns:
 
-  const tenant = subdomain
-    ? await resolveTenantBySubdomain(subdomain)
-    : await resolveTenantByCustomDomain(hostname);
+- subdomain: `acme.product.com`
+- custom domain: `interviews.acme.com`
+- path-based: `/acme/dashboard`
+- token-based: API key maps to tenant
+
+In a Next.js app, middleware is a natural place to resolve the tenant and attach it to request headers.
+
+```ts
+export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get("host") ?? "";
+  const tenant = await resolveTenant(hostname);
 
   if (!tenant) {
-    return NextResponse.redirect(new URL('/not-found', request.url));
+    return NextResponse.redirect(new URL("/not-found", request.url));
   }
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-tenant-id', tenant.id);
+  const headers = new Headers(request.headers);
+  headers.set("x-tenant-id", tenant.id);
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  return NextResponse.next({ request: { headers } });
 }
 ```
 
-We cache tenant lookups in Redis with a 5-minute TTL. The middleware adds the tenant ID to the request headers, and every downstream handler reads it from there. No global state, no context pollution.
+The important part is consistency. If some routes resolve tenant by domain and others resolve tenant by session user, bugs will appear in the gaps.
 
-## The Database Decision: Shared vs Isolated
+## Tenant Isolation Is a Backend Feature
 
-This is the most consequential architectural choice in any multi-tenant system. We evaluated three approaches:
+For most early-stage SaaS products, shared tables with a `tenant_id` column are a practical starting point. They are cheaper and easier to operate than database-per-tenant.
 
-| Approach | Isolation | Cost | Complexity |
-|----------|-----------|------|------------|
-| Database per tenant | Highest | Highest | High |
-| Schema per tenant | High | Medium | Medium |
-| Shared tables with tenant_id | Lower | Lowest | Lowest |
+But application-level filtering is not enough. One missing `WHERE tenant_id = ...` can become a data leak.
 
-We went with **shared tables with tenant_id columns** and strict row-level filtering. Here is why:
+I prefer defense in depth:
 
-- With 200+ tenants on the roadmap, managing separate databases or schemas would be an operational nightmare
-- Our data model is identical across tenants -- no tenant needs custom columns
-- PostgreSQL Row Level Security (RLS) gives us database-enforced isolation without relying on application code
+- tenant ID in every tenant-owned table
+- database indexes that include tenant ID
+- request-scoped tenant context
+- authorization helpers that require tenant ID
+- tests that attempt cross-tenant reads
+- admin routes with explicit tenant switching
+
+If using Postgres, Row Level Security can add another layer:
 
 ```sql
--- Enable RLS on the interviews table
 ALTER TABLE interviews ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation ON interviews
-  USING (company_id = current_setting('app.current_tenant_id')::uuid);
+USING (tenant_id = current_setting('app.tenant_id')::uuid);
 ```
 
-Every database connection sets the tenant context before executing queries:
+RLS does not remove the need for good application code, but it makes the database participate in the safety model.
 
-```typescript
-async function withTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
-  await db.execute(sql`SET LOCAL app.current_tenant_id = ${tenantId}`);
-  return fn();
+## AI Costs Need Tenant Boundaries
+
+AI features are expensive in a way normal CRUD features are not. One tenant can accidentally or intentionally create a cost spike.
+
+That means usage limits should be designed as product primitives:
+
+- requests per minute
+- tokens per day
+- interviews per billing cycle
+- concurrent sessions
+- max audio duration
+- model tier access
+- retry budgets
+
+Rate limiting should be tenant-aware. A global limiter protects infrastructure, but a tenant limiter protects the business.
+
+```ts
+type LimitDecision = {
+  allowed: boolean;
+  remaining: number;
+  resetAt: Date;
+  reason?: "plan_limit" | "burst_limit" | "abuse_guard";
+};
+```
+
+The response should be understandable enough for the product to show a useful message, not just a generic 429.
+
+## Billing and Usage Should Share a Language
+
+If the product sells "AI interviews", the system should track AI interviews as first-class usage events. If it sells "evaluation credits", the backend should emit evaluation-credit events.
+
+Do not make billing infer business meaning from raw infrastructure logs.
+
+A clean usage event might look like:
+
+```json
+{
+  "tenantId": "tenant_123",
+  "eventType": "ai_interview_completed",
+  "quantity": 1,
+  "sourceId": "interview_456",
+  "occurredAt": "2026-04-05T10:30:00.000Z"
 }
 ```
 
-This means even if application code accidentally omits a `WHERE company_id = ?` clause, PostgreSQL itself blocks cross-tenant data access. Defense in depth.
+Events should be idempotent. Billing systems fail, webhooks retry, workers crash, and users refresh pages. A usage event needs a stable identity so it cannot be counted twice.
 
-## Tenant Configuration
+## Feature Flags Are Safety Valves
 
-Each tenant has a configuration object stored in the database that controls:
+AI products need runtime control.
 
-- **Branding**: Logo URL, primary color, company name displayed in the UI
-- **Features**: Which modules are enabled (video interviews, async interviews, AI evaluation)
-- **Integrations**: ATS webhook URLs, SSO provider settings, email domains
+Useful flags:
 
-## Billing Isolation
+- enable voice interviews
+- enable LLM evaluation
+- switch model provider
+- lower max answer duration
+- require human review for low-confidence scores
+- disable expensive follow-up generation
+- route a tenant to a safer prompt version
 
-Each tenant maps to a Stripe customer. Subscriptions, invoices, and usage metering are scoped entirely to the Stripe customer ID stored in the tenant record. We never aggregate billing data across tenants — even internal analytics dashboards filter by tenant.
+Flags are not only for product experiments. They are operational controls.
 
-For usage-based billing (charged per completed interview), we track events in a `usage_events` table with `tenant_id` and `event_type` columns. A nightly job syncs these events to Stripe's usage records API. If the sync fails, it retries the next night with the accumulated delta. No interview is billed twice because each usage event has a unique ID that Stripe deduplicates.
+When an AI system misbehaves, you do not want the only rollback path to be a full redeploy.
 
-We load tenant config at the layout level and pass it through React context:
+## Observability Should Be Tenant-Aware
 
-```typescript
-export default async function TenantLayout({ children }: { children: React.ReactNode }) {
-  const tenantId = headers().get('x-tenant-id');
-  const config = await getTenantConfig(tenantId);
+Generic logs are not enough. You need to answer:
 
-  return (
-    <TenantProvider config={config}>
-      <ThemeWrapper primaryColor={config.primaryColor}>
-        {children}
-      </ThemeWrapper>
-    </TenantProvider>
-  );
-}
-```
+- Which tenant is driving cost?
+- Which plan tier has the highest latency?
+- Which prompt version increased retries?
+- Which tenant is hitting rate limits?
+- Which model provider is failing for which feature?
 
-## Data Isolation Testing
+Every AI call should include structured metadata:
 
-Trust but verify. We run automated tests that attempt cross-tenant data access:
+- tenant ID
+- user ID if safe
+- feature name
+- model
+- prompt version
+- token usage
+- latency
+- cache hit or miss
+- safety outcome
 
-1. Create two test tenants with seed data
-2. Authenticate as Tenant A
-3. Attempt to read, update, and delete Tenant B's records
-4. Assert that every operation returns 0 results or a 403
+This is how you debug AI systems without guessing.
 
-These tests run in CI on every pull request. They have caught two bugs so far -- both in admin-level API routes where the tenant filter was applied inconsistently.
+## What I Would Not Overbuild
 
-## What I Would Do Differently
+I would not start with database-per-tenant unless the product has strict enterprise or regulatory requirements from day one.
 
-If I started over, I would invest in tenant provisioning automation earlier. We manually created tenant configurations for our first 20 customers. That took approximately 45 minutes per tenant and required CTO involvement (me). That clearly did not scale.
+I would not build a complex internal admin panel before the core tenant model is stable.
 
-Now we have a self-service onboarding flow that runs a 5-step provisioning pipeline:
+I would not let every feature invent its own usage tracking.
 
-1. Create tenant row in the database with a unique slug
-2. Seed default configuration (feature flags, branding defaults, default interview templates)
-3. Create subdomain DNS record via Cloudflare API (`${slug}.hyrecruit.ai`)
-4. Provision a Stripe customer with the selected plan
-5. Send welcome email with admin login credentials
+The early architecture should be boring in the right places: one tenant model, one usage event system, one rate limit layer, one place to resolve tenant context.
 
-Each step is idempotent. If step 3 fails (Cloudflare API timeout), retrying the pipeline skips steps 1-2 (already completed) and picks up from step 3. The entire pipeline runs as a background job and completes in under 30 seconds. From 45 minutes of manual work to 30 seconds of automation — that is the kind of investment that pays back immediately once you have more than 10 customers.
+## The Engineering Lesson
 
-Multi-tenancy is one of those things that is much harder to retrofit than to build in from the start. If you are building a SaaS with Next.js, think about tenant isolation before you write your first API route. Your future self will thank you.
+AI SaaS is still SaaS.
 
-For how we optimize the database queries that power our multi-tenant dashboards, see [PostgreSQL Performance Patterns We Use at HyrecruitAI](/blog/postgres-performance-patterns).
+The model adds new cost and safety constraints, but the foundation is familiar: isolation, authorization, billing, observability, limits, and operational control.
+
+The best AI product engineers can move between both worlds. They know how to make the model useful, and they know how to wrap it in systems that keep working when real customers arrive.

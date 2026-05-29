@@ -10,7 +10,7 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
     title: "Blog",
-    description: "Writing on shipping real-time AI systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and multi-tenant SaaS.",
+    description: "Four focused essays on real-time AI systems, LLM evaluation, semantic caching, and multi-tenant AI SaaS.",
 }
 
 export default function Blogs() {
@@ -36,7 +36,7 @@ export default function Blogs() {
                         Blog
                     </h1>
                     <p className="text-zinc-700 dark:text-zinc-400 leading-relaxed">
-                        Writing on shipping real-time AI systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and multi-tenant SaaS. The unglamorous side of the work, written so the next engineer doesn&apos;t have to rediscover it.
+                        Four focused essays on the engineering work behind AI products: real-time voice systems, LLM evaluation, semantic caching, and the SaaS infrastructure that keeps everything safe to scale.
                     </p>
                     <Stats total={posts.length} featured={featured.length} />
                 </header>
@@ -46,7 +46,7 @@ export default function Blogs() {
                         <section className="flex flex-col gap-8">
                             <div className="flex items-center gap-3">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-brand-pink dark:text-brand-peach">
-                                    01 · Pinned
+                                    01 / Core essays
                                 </span>
                                 <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
                             </div>
@@ -66,7 +66,7 @@ export default function Blogs() {
                         <section className="flex flex-col gap-6">
                             <div className="flex items-center gap-3">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-500">
-                                    {String(gi + 2).padStart(2, "0")} · {year}
+                                    {String(gi + 2).padStart(2, "0")} / {year}
                                 </span>
                                 <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
                                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
@@ -166,9 +166,9 @@ function ArchivePostRow({ post, index }: { post: BlogPost; index: number }) {
 function Stats({ total, featured }: { total: number; featured: number }) {
     return (
         <div className="grid grid-cols-3 gap-x-6 gap-y-2 max-w-md font-mono text-[10px] uppercase tracking-[0.18em] pt-3">
-            <Stat label="Posts" value={total} />
-            <Stat label="Pinned" value={featured} />
-            <Stat label="Topics" value="AI · Systems · SaaS" small />
+            <Stat label="Essays" value={total} />
+            <Stat label="Core" value={featured} />
+            <Stat label="Topics" value="AI / Systems / SaaS" small />
         </div>
     )
 }
