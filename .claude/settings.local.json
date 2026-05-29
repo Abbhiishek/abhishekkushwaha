@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(bun remove:*)",
-      "Bash(/c/Users/abhis/.bun/bin/bun remove:*)"
+      "Bash(/c/Users/abhis/.bun/bin/bun remove:*)",
+      "Bash(pnpm build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep -h \"^title:\" /c/Users/abhis/work/personal/abhishekkushwaha/content/blog/*.md)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr:*)",
+      "Bash(git pull:*)"
     ]
   }
 }

@@ -2,9 +2,12 @@ import {
     FiBook,
     FiBookmark,
     FiCode,
+    FiCpu,
     FiHome,
+    FiMic,
     FiPaperclip,
-    FiUser
+    FiUser,
+    FiBriefcase
 } from "react-icons/fi";
 
 export const actions = [
@@ -54,6 +57,24 @@ export const actions = [
         icon: FiBook({ size: "1rem" }),
     },
     {
+        id: "tech",
+        name: "Tech",
+        shortcut: ["t"],
+        keywords: "tech stack tools gadgets ai llm vector databases",
+        perform: () => (window.location.pathname = "/tech"),
+        section: "Navigation",
+        icon: FiCpu({ size: "1rem" }),
+    },
+    {
+        id: "talks",
+        name: "Talks",
+        shortcut: ["m"],
+        keywords: "talks notes field demos speaking ai agents",
+        perform: () => (window.location.pathname = "/talks"),
+        section: "Navigation",
+        icon: FiMic({ size: "1rem" }),
+    },
+    {
         id: "links",
         name: "Links",
         shortcut: ["l"],
@@ -61,5 +82,14 @@ export const actions = [
         perform: () => (window.location.pathname = "/links"),
         section: "Navigation",
         icon: FiPaperclip({ size: "1rem" }),
+    },
+    {
+        id: "work",
+        name: "Work",
+        shortcut: ["w"],
+        keywords: "work experience hyrecruitai ai product engineering",
+        perform: () => (window.location.pathname = "/work"),
+        section: "Navigation",
+        icon: FiBriefcase({ size: "1rem" }),
     },
 ];

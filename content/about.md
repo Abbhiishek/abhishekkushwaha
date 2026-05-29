@@ -1,23 +1,23 @@
 ---
-publish_date: 25 May, 2024
+publish_date: 27 May, 2026
 ---
 
 # About Me
 
-#### Most of the things you (maybe) want to know about me
+#### The longer version
 
-My name is Abhishek Kushwaha. I study Computer Science and Engineering at JIS University Kolkata, West Bengal, India. My hobbies include building software, reading, and teaching how to code.
+My name is Abhishek Kushwaha. I build AI product systems — voice agents, LLM evaluation pipelines, real-time video, semantic caches, and the multi-tenant SaaS infrastructure that makes them run.
 
-I am interested in building communities because I believe that communities are the backbone of society. They help in bringing people together, sharing knowledge, and helping each other grow. I have been a part of various communities and have seen the impact they have on people's lives. I want to build an inclusive community where people could share ideas and receive help.
+These days I lead engineering at [HyrecruitAI](https://hyrecruitai.com), where we ship an AI interviewer that conducts thousands of real conversations a week. The job moves from latency budgets to rubric design to billing, sometimes inside the same morning. Working at that interface — where the model, the product, and the infrastructure all decide outcomes together — is what I enjoy most.
 
-I started my software development journey with discord bots for fun, later found my passion in building web apps. I was fascinated by the idea of building something that could interact with people. I wrote my first line of code back in [school](https://www.khalsaschoolkolkata.org/) when i was in class 10. I love to code in JavaScript/TypeScript and Python. Currently learning Rust.
+I write at [/blog](/blog) about the unglamorous side of shipping AI: guardrails, embeddings precision, voice pipelines, prompt versioning, and the production decisions that nobody puts on conference slides. The site exists because the work deserved a home outside of Notion docs and PR descriptions.
 
-Apart from coding, I love to bing watch sci-fi movies and tv shows. I am a huge fan of the Marvel Cinematic Universe and the Star Wars franchise. I also love to read books, my favorite genres are science fiction and fantasy. I am a huge fan of the Harry Potter series and the Lord of the Rings trilogy.
+Before AI products, I built developer tools and ran communities. I led a Google Developer Student Club, organized workshops and hackathons, mentored 400+ students at JIS University, and wrote Python tutorials for [Scaler](https://www.scaler.com/topics/author/abhishek-kushwaha/). That community work shaped how I write code now — I document like I am teaching the next person, because at some point I will be.
 
-I hold a passion to play cricket but never got a chance to play😭. Talking about playing, I love pc games. I have been playing games since I was a kid. My first pc game was [Need for Speed: Most Wanted (2012 video game) ](<https://en.wikipedia.org/wiki/Need_for_Speed:_Most_Wanted_(2012_video_game)>). Currently playing [A Plague Tale: Innocence](https://en.wikipedia.org/wiki/A_Plague_Tale:_Innocence)
+I code primarily in TypeScript and Python, dip into Go for systems work, and have been learning Rust on the side. I prefer products that respect the user's time and infrastructure that respects the on-call engineer's sleep.
 
-In my free time, I love to document my learning and write blogs. In past, I have written blogs on [dev.to](https://dev.to/abbhiishek) and [hashnode](https://h.abhishekkushwaha.me/). I have also wrote some [python blogs for scaler academy](https://www.scaler.com/topics/author/abhishek-kushwaha/).
+Outside the editor: sci-fi, books I keep re-reading instead of finishing the new ones, bad cricket, and the occasional long PC game when I want a story I cannot skim through.
 
-I am always open to new opportunities and challenges. If you have any ideas or projects you want to collaborate on, feel free to reach out to me. I am always looking for new ways to learn and grow.
+I am open to senior AI / product engineering conversations, technical collaborations, talks, and writing opportunities.
 
-You can find me [here 👀](/links)
+You can find me [here 👀](/links).

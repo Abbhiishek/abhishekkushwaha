@@ -4,7 +4,7 @@ description: "How we replaced keyword filters with vector embeddings to match ca
 date: "2026-04-07"
 tags: embeddings, vector-search, ai, hiring, pgvector
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 Six months after launch, our job-to-candidate matching was producing garbage results. A "Senior Backend Engineer" role was surfacing candidates who had "backend" in their hobbies section and "senior" in their college club title. The precision on our top-10 matches was 34%. Recruiters were spending 40+ minutes per role manually filtering. We had keyword search dressed up as AI.

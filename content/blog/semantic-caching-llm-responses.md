@@ -4,7 +4,7 @@ description: "How we built a two-layer semantic cache using pgvector and Redis t
 date: "2026-04-11"
 tags: llm, caching, pgvector, redis, cost-optimization
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 At HyrecruitAI, our LLM bill crossed $18,000/month by the time we hit 4,000 active interviews. The culprit wasn't complex reasoning tasks — it was thousands of nearly-identical prompts: "Evaluate this candidate's answer to: What is a REST API?" asked in 47 slightly different phrasings. We were paying for re-generation of answers we'd already produced.

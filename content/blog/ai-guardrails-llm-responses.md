@@ -4,7 +4,7 @@ description: "How we stopped our interview AI from going off-script, leaking PII
 date: "2026-04-12"
 tags: ai, llm, guardrails, typescript, production
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 Three weeks after we launched the AI interviewer at HyrecruitAI, a candidate screenshot went viral on Twitter. Our model had told someone their "communication style seemed regional" — a subtle but real form of bias creeping through a system prompt we thought was airtight. Impressions: 40k. Support tickets: 23. Investor calls asking what happened: 2.

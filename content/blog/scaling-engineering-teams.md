@@ -4,7 +4,7 @@ description: "What it actually looks like to grow from 2 to 15 engineers at a se
 date: "2025-12-15"
 tags: engineering, leadership, startup, scaling
 coverImage: /thumbnail.jpg
-featured: true
+featured: false
 ---
 
 # Scaling Engineering Teams: Lessons from Building HyrecruitAI

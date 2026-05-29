@@ -4,7 +4,7 @@ description: 'How we deploy HyrecruitAI from code to staging to production using
 date: '2025-11-20'
 tags: azure, github-actions, cicd, devops
 coverImage: /thumbnail.jpg
-featured: true
+featured: false
 ---
 
 When I co-founded HyrecruitAI, deployments were me SSHing into a VM at 2 AM. That worked for the first month. Then we hired two more engineers, broke production twice in a week, and I knew we needed a real pipeline.

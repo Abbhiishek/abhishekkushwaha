@@ -32,11 +32,11 @@ export const NavbarItems = [
         slug: "/tech",
         icon: Flame,
     },
-    // {
-    //     name: "Talks",
-    //     slug: "/talks",
-    //     icon: MicVocal,
-    // },
+    {
+        name: "Talks",
+        slug: "/talks",
+        icon: MicVocal,
+    },
     {
         name: "Links",
         slug: "/links",

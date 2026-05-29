@@ -4,7 +4,7 @@ description: "How we engineered the voice pipeline at HyrecruitAI — streaming 
 date: "2026-04-02"
 tags: voice-agent, speech-to-text, websockets, llm, ai
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 Our first version of the AI interviewer was text-only. Candidates typed answers; the LLM evaluated them. Completion rates were 34%. After we shipped voice, they jumped to 71%. The problem was never the AI quality — it was the friction. Nobody wants to type a 3-minute answer to a behavioral question.

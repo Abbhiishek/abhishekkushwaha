@@ -4,7 +4,7 @@ description: "How we architected HyrecruitAI for multi-tenancy — tenant isolat
 date: "2025-08-15"
 tags: nextjs, saas, multi-tenant, architecture
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 # Building a Multi-Tenant SaaS with Next.js

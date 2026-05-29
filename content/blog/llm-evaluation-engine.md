@@ -4,7 +4,7 @@ description: "Inside HyrecruitAI's AI evaluation engine — prompt engineering, 
 date: "2026-03-01"
 tags: llm, ai, evaluation, prompt-engineering
 coverImage: /thumbnail.jpg
-featured: false
+featured: true
 ---
 
 # How We Built an LLM-Based Evaluation Engine for Interview Answers
