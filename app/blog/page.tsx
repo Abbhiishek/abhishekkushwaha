@@ -11,11 +11,11 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
     title: "Blog",
-    description: "Four focused essays on real-time AI systems, LLM evaluation, semantic caching, and multi-tenant AI SaaS.",
+    description: "Focused essays on AI engineering, hybrid search, ranking systems, real-time AI products, and the infrastructure behind them.",
     ...pageSocialMetadata({
         page: "blogs",
         title: "Blog",
-        description: "Four focused essays on real-time AI systems, LLM evaluation, semantic caching, and multi-tenant AI SaaS.",
+        description: "Focused essays on AI engineering, hybrid search, ranking systems, real-time AI products, and the infrastructure behind them.",
     }),
 }
 
@@ -42,7 +42,7 @@ export default function Blogs() {
                         Blog
                     </h1>
                     <p className="text-zinc-700 dark:text-zinc-400 leading-relaxed">
-                        Four focused essays on the engineering work behind AI products: real-time voice systems, LLM evaluation, semantic caching, and the SaaS infrastructure that keeps everything safe to scale.
+                        Focused essays on the engineering work behind AI products: real-time systems, LLM evaluation, hybrid search, recommendations, ranking loops, and the infrastructure that keeps everything safe to scale.
                     </p>
                     <Stats total={posts.length} featured={featured.length} />
                 </header>

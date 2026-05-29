@@ -21,12 +21,12 @@ const statusText: Record<CaseStudyStatus, string> = {
 
 export default function CaseStudies() {
     return (
-        <section className="flex flex-col gap-8" aria-label="AI systems case studies">
+        <section className="flex flex-col gap-8" aria-label="Engineering notes">
             <FadeInView>
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
                         <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                            03 · Case studies
+                            03 / Engineering notes
                         </span>
                         <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
                     </div>
@@ -37,18 +37,18 @@ export default function CaseStudies() {
                                 adlam_display.className
                             )}
                         >
-                            AI systems I have shipped
+                            Systems worth reading into
                         </h2>
                         <Link
-                            href="/work"
+                            href="/blog"
                             className="self-start sm:self-auto inline-flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
-                            Experience trail
+                            Writing archive
                             <ArrowUpRight size={14} />
                         </Link>
                     </div>
                     <p className="text-zinc-600 dark:text-zinc-400 max-w-2xl">
-                        Each card is a system I designed, built, or own in production today. Most ship inside HyrecruitAI — the patterns travel.
+                        A tighter set of technical essays and case-study notes: search, recommendations, self-hosted systems, and relevance loops that show how I think through products end to end.
                     </p>
                 </div>
             </FadeInView>
