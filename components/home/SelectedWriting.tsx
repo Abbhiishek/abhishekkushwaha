@@ -48,7 +48,7 @@ export default function SelectedWriting({ posts }: { posts: BlogPost[] }) {
                     <StaggerItem key={post.slug}>
                         <Link
                             href={`/blog/${post.slug}`}
-                            className="group grid grid-cols-[3rem_1fr_auto] sm:grid-cols-[3rem_1fr_10rem_4rem] items-center gap-3 sm:gap-6 py-5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors -mx-2 px-2 rounded"
+                            className="group grid grid-cols-[3rem_1fr_auto] items-center gap-3 sm:gap-6 py-5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-900/30 transition-colors -mx-2 px-2 rounded"
                         >
                             <span className="font-mono text-[10px] tracking-[0.2em] text-zinc-400 dark:text-zinc-600">
                                 {String(i + 1).padStart(2, "0")}
@@ -61,17 +61,6 @@ export default function SelectedWriting({ posts }: { posts: BlogPost[] }) {
                                 <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-1">
                                     {post.description}
                                 </p>
-                            </div>
-
-                            <div className="hidden sm:flex flex-wrap gap-1.5 justify-end">
-                                {post.tags.slice(0, 2).map((t) => (
-                                    <span
-                                        key={t}
-                                        className="font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-500"
-                                    >
-                                        {t}
-                                    </span>
-                                ))}
                             </div>
 
                             <div className="flex items-center justify-end gap-2 font-mono text-[11px] text-zinc-500">

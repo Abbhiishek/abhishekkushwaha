@@ -1,13 +1,12 @@
 "use client"
 
 import { AnimatedPage } from "@/components/AnimatedList"
-import { BackLink, ExternalLinks, ProjectStatusBar, StackPills } from "@/components/projects/ProjectChrome"
+import { BackLink, ExternalLinks, ProjectChallenges } from "@/components/projects/ProjectChrome"
 import { FadeIn, FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
-import { CheckCircle2 } from "lucide-react"
 import Image from "next/image"
 
 interface Props {
@@ -20,10 +19,6 @@ export default function DevResumeLayout({ project, detail }: Props) {
         <AnimatedPage className="w-full flex flex-col gap-16 lg:gap-20 mt-16 lg:mt-10 mb-20 px-2 lg:px-4">
             <section className="flex flex-col gap-6">
                 <BackLink />
-
-                <FadeIn delay={0.1}>
-                    <ProjectStatusBar project={project} />
-                </FadeIn>
 
                 <FadeIn delay={0.18}>
                     <h1
@@ -51,7 +46,6 @@ export default function DevResumeLayout({ project, detail }: Props) {
                 <FadeIn delay={0.4}>
                     <div className="flex flex-wrap items-center gap-5 pt-1">
                         <ExternalLinks project={project} />
-                        <StackPills stack={project.stack} />
                     </div>
                 </FadeIn>
             </section>
@@ -65,13 +59,6 @@ export default function DevResumeLayout({ project, detail }: Props) {
                         className="object-cover"
                         priority
                     />
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/80">
-                        <span>devresume.io</span>
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-brand-peach" />
-                            Live preview
-                        </span>
-                    </div>
                 </div>
             </FadeInView>
 
@@ -117,56 +104,9 @@ export default function DevResumeLayout({ project, detail }: Props) {
                 </StaggerContainer>
             </section>
 
-            <section className="flex flex-col gap-8" aria-label="Problems and approach">
-                <div className="flex items-center gap-3">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                        03 · What broke and how we fixed it
-                    </span>
-                    <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
-                </div>
-
-                <div className="flex flex-col gap-10">
-                    {detail.challenges.map((c, i) => (
-                        <FadeInView key={c.title}>
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
-                                <div className="lg:col-span-4">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                                        Problem {String(i + 1).padStart(2, "0")}
-                                    </span>
-                                    <h3
-                                        className={cn(
-                                            "text-xl sm:text-2xl text-zinc-900 dark:text-white mt-2",
-                                            adlam_display.className
-                                        )}
-                                    >
-                                        {c.title}
-                                    </h3>
-                                </div>
-                                <div className="lg:col-span-8 flex flex-col gap-4">
-                                    <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">{c.problem}</p>
-                                    <div className="p-5 rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/60">
-                                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                            Approach
-                                        </span>
-                                        <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-2 leading-relaxed">
-                                            {c.approach}
-                                        </p>
-                                    </div>
-                                    {c.outcome && (
-                                        <div className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                                            <CheckCircle2
-                                                size={16}
-                                                className="text-brand-peach mt-0.5 shrink-0"
-                                            />
-                                            <span>{c.outcome}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </FadeInView>
-                    ))}
-                </div>
-            </section>
+            <FadeInView>
+                <ProjectChallenges detail={detail} />
+            </FadeInView>
 
             <section className="flex flex-col gap-8" aria-label="Vlog">
                 <div className="flex items-center gap-3">

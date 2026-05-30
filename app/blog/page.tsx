@@ -44,7 +44,6 @@ export default function Blogs() {
                     <p className="text-zinc-700 dark:text-zinc-400 leading-relaxed">
                         Focused essays on the engineering work behind AI products: real-time systems, LLM evaluation, hybrid search, recommendations, ranking loops, and the infrastructure that keeps everything safe to scale.
                     </p>
-                    <Stats total={posts.length} featured={featured.length} />
                 </header>
 
                 {featured.length > 0 && (
@@ -75,9 +74,6 @@ export default function Blogs() {
                                     {String(gi + 2).padStart(2, "0")} / {year}
                                 </span>
                                 <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
-                                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                    {archiveByYear[year].length} posts
-                                </span>
                             </div>
                             <StaggerContainer className="flex flex-col border-t border-zinc-200 dark:border-zinc-800">
                                 {archiveByYear[year].map((post, i) => (
@@ -118,17 +114,7 @@ function FeaturedPostCard({ post }: { post: BlogPost }) {
                 {post.title}
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-3">{post.description}</p>
-            <ul className="flex flex-wrap gap-1.5 mt-auto">
-                {post.tags.slice(0, 3).map((tag) => (
-                    <li
-                        key={tag}
-                        className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
-                    >
-                        {tag}
-                    </li>
-                ))}
-            </ul>
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.18em] text-brand-pink dark:text-brand-peach group-hover:translate-x-0.5 transition-transform">
+            <span className="mt-auto inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.18em] text-brand-pink dark:text-brand-peach group-hover:translate-x-0.5 transition-transform">
                 Read
                 <ArrowUpRight size={12} />
             </span>
@@ -140,7 +126,7 @@ function ArchivePostRow({ post, index }: { post: BlogPost; index: number }) {
     return (
         <Link
             href={`/blog/${post.slug}`}
-            className="group grid grid-cols-[3rem_1fr_4rem] sm:grid-cols-[3rem_1fr_10rem_4rem] items-center gap-3 sm:gap-6 py-5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors -mx-2 px-2 rounded"
+            className="group grid grid-cols-[3rem_1fr_4rem] items-center gap-3 sm:gap-6 py-5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors -mx-2 px-2 rounded"
         >
             <span className="font-mono text-[10px] tracking-[0.2em] text-zinc-400 dark:text-zinc-600 group-hover:text-brand-pink dark:group-hover:text-brand-peach transition-colors">
                 {String(index + 1).padStart(2, "0")}
@@ -151,13 +137,6 @@ function ArchivePostRow({ post, index }: { post: BlogPost; index: number }) {
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-1">{post.description}</p>
             </div>
-            <div className="hidden sm:flex flex-wrap gap-1.5 justify-end">
-                {post.tags.slice(0, 2).map((tag) => (
-                    <span key={tag} className="font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-500">
-                        {tag}
-                    </span>
-                ))}
-            </div>
             <div className="flex items-center justify-end gap-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-500">
                 <span>{post.readingTime}m</span>
                 <ArrowUpRight
@@ -166,27 +145,6 @@ function ArchivePostRow({ post, index }: { post: BlogPost; index: number }) {
                 />
             </div>
         </Link>
-    )
-}
-
-function Stats({ total, featured }: { total: number; featured: number }) {
-    return (
-        <div className="grid grid-cols-3 gap-x-6 gap-y-2 max-w-md font-mono text-[10px] uppercase tracking-[0.18em] pt-3">
-            <Stat label="Essays" value={total} />
-            <Stat label="Core" value={featured} />
-            <Stat label="Topics" value="AI / Systems / SaaS" small />
-        </div>
-    )
-}
-
-function Stat({ label, value, small }: { label: string; value: number | string; small?: boolean }) {
-    return (
-        <div className="flex flex-col">
-            <span className={cn("text-zinc-900 dark:text-zinc-100 font-sans", small ? "text-sm" : "text-lg")}>
-                {value}
-            </span>
-            <span className="text-zinc-500 dark:text-zinc-500">{label}</span>
-        </div>
     )
 }
 

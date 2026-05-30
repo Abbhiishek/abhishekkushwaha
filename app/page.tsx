@@ -2,7 +2,6 @@ import CaseStudies from '@/components/home/CaseStudies';
 import ContactCTA from '@/components/home/ContactCTA';
 import CurrentFocus from '@/components/home/CurrentFocus';
 import Hero from '@/components/home/Hero';
-import ProofRails from '@/components/home/ProofRails';
 import SelectedWriting from '@/components/home/SelectedWriting';
 import { getFeaturedBlogPosts } from '@/lib/blogs';
 import { parseMarkdownFile } from '@/lib/markdown';
@@ -14,9 +13,8 @@ export default function Home() {
   const featuredPosts = getFeaturedBlogPosts()
 
   return (
-    <main className="flex flex-col gap-16 lg:gap-20 mt-6 lg:mt-10 px-2 lg:px-4 w-full pb-28 lg:pb-24">
+    <main className="flex flex-col gap-16 lg:gap-24 mt-6 lg:mt-10 px-2 lg:px-4 w-full pb-28 lg:pb-24">
       <Hero />
-      <ProofRails />
       <CaseStudies />
       <SelectedWriting posts={featuredPosts} />
       <CurrentFocus html={html} />

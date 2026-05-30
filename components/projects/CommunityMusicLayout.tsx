@@ -1,7 +1,7 @@
 "use client"
 
 import { AnimatedPage } from "@/components/AnimatedList"
-import { BackLink, ExternalLinks, ProjectStatusBar, StackPills } from "@/components/projects/ProjectChrome"
+import { BackLink, ExternalLinks, ProjectChallenges } from "@/components/projects/ProjectChrome"
 import { FadeIn, FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
@@ -20,12 +20,6 @@ export default function CommunityMusicLayout({ project, detail }: Props) {
         <AnimatedPage className="w-full flex flex-col gap-20 lg:gap-24 mt-16 lg:mt-10 mb-24 px-2 lg:px-4">
             <section className="flex flex-col gap-8 max-w-4xl">
                 <BackLink />
-                <FadeIn delay={0.1}>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                        Issue 01 · {project.period}
-                    </span>
-                </FadeIn>
-
                 <FadeIn delay={0.16}>
                     <h1
                         className={cn(
@@ -43,14 +37,9 @@ export default function CommunityMusicLayout({ project, detail }: Props) {
                     </p>
                 </FadeIn>
 
-                <FadeIn delay={0.32}>
-                    <ProjectStatusBar project={project} />
-                </FadeIn>
-
                 <FadeIn delay={0.4}>
                     <div className="flex flex-wrap gap-4 items-center">
                         <ExternalLinks project={project} />
-                        <StackPills stack={project.stack} />
                     </div>
                 </FadeIn>
             </section>
@@ -60,9 +49,6 @@ export default function CommunityMusicLayout({ project, detail }: Props) {
                     <div className="relative w-full h-64 sm:h-96 rounded-2xl overflow-hidden ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-100 dark:bg-zinc-900">
                         <Image src={project.image} alt={project.title} fill className="object-cover" priority />
                     </div>
-                    <figcaption className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500 max-w-2xl">
-                        Full-stack community platform: React and Next.js on the client, Django and Postgres on the server.
-                    </figcaption>
                 </figure>
             </FadeInView>
 
@@ -111,40 +97,9 @@ export default function CommunityMusicLayout({ project, detail }: Props) {
                         </StaggerContainer>
                     </Chapter>
 
-                    <Chapter index="03" title="What broke">
-                        <div className="flex flex-col gap-10">
-                            {detail.challenges.map((c, i) => (
-                                <FadeInView key={c.title}>
-                                    <article className="flex flex-col gap-3">
-                                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                            Scene {String(i + 1).padStart(2, "0")}
-                                        </span>
-                                        <h4
-                                            className={cn(
-                                                "text-2xl text-zinc-900 dark:text-zinc-100",
-                                                adlam_display.className
-                                            )}
-                                        >
-                                            {c.title}
-                                        </h4>
-                                        <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                                            {c.problem}
-                                        </p>
-                                        <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                                            <span className="text-zinc-500 italic">What I did: </span>
-                                            {c.approach}
-                                        </p>
-                                        {c.outcome && (
-                                            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                                                <span className="text-brand-pink dark:text-brand-peach italic">Outcome: </span>
-                                                {c.outcome}
-                                            </p>
-                                        )}
-                                    </article>
-                                </FadeInView>
-                            ))}
-                        </div>
-                    </Chapter>
+                    <FadeInView>
+                        <ProjectChallenges detail={detail} title="What broke and what changed" />
+                    </FadeInView>
 
                     <Chapter index="04" title="Notes from the build">
                         <StaggerContainer className="flex flex-col gap-8">

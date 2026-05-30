@@ -1,17 +1,14 @@
-import LabCard from "@/components/ui/lab-card"
 import { ArrowUpRight, BriefcaseBusiness, Mail } from "lucide-react"
 import Link from "next/link"
 
 export default function BlogCTA() {
     return (
-        <LabCard
-            tone="strong"
-            className="mt-4"
-            contentClassName="grid gap-7 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-end"
+        <section
+            className="mt-4 grid gap-7 rounded-2xl border border-zinc-200 bg-white/60 p-6 dark:border-zinc-800 dark:bg-zinc-950/35 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-end"
+            aria-label="Contact"
         >
             <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-sky-900/60 dark:text-sky-100/45">
-                    <span className="h-1.5 w-1.5 rounded-full bg-brand-peach" />
+                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
                     Senior AI / product engineering
                 </div>
                 <div className="flex flex-col gap-3">
@@ -42,6 +39,6 @@ export default function BlogCTA() {
                     <ArrowUpRight size={14} />
                 </Link>
             </div>
-        </LabCard>
+        </section>
     )
 }

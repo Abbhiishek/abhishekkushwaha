@@ -1,7 +1,7 @@
 "use client"
 
 import { AnimatedPage } from "@/components/AnimatedList"
-import { BackLink, ExternalLinks, ProjectStatusBar, StackPills } from "@/components/projects/ProjectChrome"
+import { BackLink, ExternalLinks, ProjectChallenges } from "@/components/projects/ProjectChrome"
 import { FadeIn, FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
@@ -25,10 +25,6 @@ export default function WiidgetsLayout({ project, detail }: Props) {
         <AnimatedPage className="w-full flex flex-col gap-16 lg:gap-20 mt-16 lg:mt-10 mb-20 px-2 lg:px-4">
             <section className="flex flex-col gap-6">
                 <BackLink />
-
-                <FadeIn delay={0.1}>
-                    <ProjectStatusBar project={project} />
-                </FadeIn>
 
                 <FadeIn delay={0.18}>
                     <h1
@@ -55,9 +51,6 @@ export default function WiidgetsLayout({ project, detail }: Props) {
                             </p>
                             <div className="flex flex-wrap items-center gap-5 pt-5">
                                 <ExternalLinks project={project} />
-                            </div>
-                            <div className="pt-4">
-                                <StackPills stack={project.stack} />
                             </div>
                         </div>
                         <EndpointCard />
@@ -95,46 +88,9 @@ export default function WiidgetsLayout({ project, detail }: Props) {
                 </StaggerContainer>
             </section>
 
-            <section className="flex flex-col gap-8" aria-label="Problems">
-                <SectionRule index="03" label="The hard parts" />
-                <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-                    {detail.challenges.map((c, i) => (
-                        <StaggerItem key={c.title}>
-                            <article className="flex flex-col gap-3 p-5 rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800 h-full bg-white/40 dark:bg-zinc-950/40">
-                                <header className="flex items-center justify-between">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                        ISSUE #{String(i + 1).padStart(2, "0")}
-                                    </span>
-                                    {c.outcome && (
-                                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-brand-peach">
-                                            RESOLVED
-                                        </span>
-                                    )}
-                                </header>
-                                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
-                                    {c.title}
-                                </h3>
-                                <div className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                    {c.problem}
-                                </div>
-                                <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                        FIX
-                                    </span>
-                                    <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1.5 leading-relaxed">
-                                        {c.approach}
-                                    </p>
-                                </div>
-                                {c.outcome && (
-                                    <div className="mt-auto pt-3 border-t border-zinc-200 dark:border-zinc-800 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
-                                        → {c.outcome}
-                                    </div>
-                                )}
-                            </article>
-                        </StaggerItem>
-                    ))}
-                </StaggerContainer>
-            </section>
+            <FadeInView>
+                <ProjectChallenges detail={detail} />
+            </FadeInView>
 
             <section className="flex flex-col gap-8" aria-label="Build notes">
                 <SectionRule index="04" label="Build notes" />
