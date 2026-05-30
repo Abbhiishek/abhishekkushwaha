@@ -70,15 +70,6 @@ export default async function BlogPost({ params }: Props) {
                             <Clock size={12} />
                             {post.readingTime} min read
                         </span>
-                        {post.featured && (
-                            <>
-                                <span>/</span>
-                                <span className="inline-flex items-center gap-1.5">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-brand-peach" />
-                                    Core essay
-                                </span>
-                            </>
-                        )}
                     </div>
 
                     <h1
@@ -95,17 +86,6 @@ export default async function BlogPost({ params }: Props) {
                             {post.description}
                         </p>
                     )}
-
-                    <ul className="flex flex-wrap gap-1.5">
-                        {post.tags.map((tag) => (
-                            <li
-                                key={tag}
-                                className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded-md bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800 dark:text-zinc-400"
-                            >
-                                {tag}
-                            </li>
-                        ))}
-                    </ul>
                 </div>
             </header>
 

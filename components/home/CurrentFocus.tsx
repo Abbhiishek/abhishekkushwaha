@@ -13,13 +13,6 @@ export default function CurrentFocus({ html }: { html: string }) {
                         05 · Now
                     </span>
                     <span className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
-                    <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-peach opacity-60" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-peach" />
-                        </span>
-                        Live
-                    </span>
                 </div>
                 <h2
                     className={cn(

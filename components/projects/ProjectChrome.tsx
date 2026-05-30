@@ -1,24 +1,10 @@
 "use client"
 
 import { FadeIn } from "@/components/ui/motion"
+import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
-import { cn } from "@/utils/cn"
 import { ArrowLeft, ArrowUpRight, Github } from "lucide-react"
 import Link from "next/link"
-
-const statusDot: Record<Project["status"], string> = {
-    shipped: "bg-brand-peach",
-    ongoing: "bg-brand-pink",
-    archived: "bg-zinc-400 dark:bg-zinc-600",
-    sunset: "bg-zinc-400 dark:bg-zinc-600",
-}
-
-const statusLabel: Record<Project["status"], string> = {
-    shipped: "SHIPPED",
-    ongoing: "ONGOING",
-    archived: "ARCHIVED",
-    sunset: "SUNSET",
-}
 
 export function BackLink() {
     return (
@@ -31,21 +17,6 @@ export function BackLink() {
                 Back to systems
             </Link>
         </FadeIn>
-    )
-}
-
-export function ProjectStatusBar({ project }: { project: Project }) {
-    return (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            <span className="inline-flex items-center gap-1.5">
-                <span className={cn("h-1.5 w-1.5 rounded-full", statusDot[project.status])} />
-                {statusLabel[project.status]}
-            </span>
-            <span>/</span>
-            <span>{project.period}</span>
-            <span>/</span>
-            <span>{project.judgment}</span>
-        </div>
     )
 }
 
@@ -80,17 +51,48 @@ export function ExternalLinks({ project }: { project: Project }) {
     )
 }
 
-export function StackPills({ stack }: { stack: string[] }) {
+export function ProjectChallenges({
+    detail,
+    title = "Problems and approach",
+}: {
+    detail: ProjectDetail
+    title?: string
+}) {
     return (
-        <ul className="flex flex-wrap gap-1.5">
-            {stack.map((s) => (
-                <li
-                    key={s}
-                    className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded ring-1 ring-zinc-200 dark:ring-zinc-800 text-zinc-600 dark:text-zinc-400"
-                >
-                    {s}
-                </li>
-            ))}
-        </ul>
+        <section className="flex flex-col gap-8" aria-label={title}>
+            <div className="flex flex-col gap-3">
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                    {title}
+                </h2>
+                <p className="max-w-2xl text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    The key product and engineering decisions, written as short problem-to-solution notes.
+                </p>
+            </div>
+
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 border-y border-zinc-200 dark:border-zinc-800">
+                {detail.challenges.map((challenge) => (
+                    <article
+                        key={challenge.title}
+                        className="grid grid-cols-1 gap-4 py-8 lg:grid-cols-[minmax(0,18rem)_1fr] lg:gap-10"
+                    >
+                        <h3 className="text-xl sm:text-2xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-zinc-100">
+                            {challenge.title}
+                        </h3>
+                        <div className="flex flex-col gap-4 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+                            <p>{challenge.problem}</p>
+                            <p>
+                                <span className="font-medium text-zinc-900 dark:text-zinc-100">Approach: </span>
+                                {challenge.approach}
+                            </p>
+                            {challenge.outcome && (
+                                <p className="border-l-2 border-brand-peach pl-4 text-zinc-700 dark:text-zinc-300">
+                                    {challenge.outcome}
+                                </p>
+                            )}
+                        </div>
+                    </article>
+                ))}
+            </div>
+        </section>
     )
 }

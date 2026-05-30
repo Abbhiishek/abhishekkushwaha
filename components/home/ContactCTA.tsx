@@ -1,7 +1,6 @@
 "use client"
 
 import { FadeInView } from "@/components/ui/motion"
-import LabCard from "@/components/ui/lab-card"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { ArrowUpRight, Mail } from "lucide-react"
@@ -10,10 +9,8 @@ import Link from "next/link"
 export default function ContactCTA() {
     return (
         <FadeInView>
-            <LabCard
-                as="section"
-                tone="strong"
-                className="p-8 sm:p-12"
+            <section
+                className="rounded-2xl border border-zinc-200 bg-white/60 p-8 sm:p-12 dark:border-zinc-800 dark:bg-zinc-950/35"
                 aria-label="Contact"
             >
                 <div className="flex flex-col gap-5">
@@ -48,7 +45,7 @@ export default function ContactCTA() {
                         </Link>
                     </div>
                 </div>
-            </LabCard>
+            </section>
         </FadeInView>
     )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { AnimatedPage } from "@/components/AnimatedList"
-import { BackLink, ExternalLinks, ProjectStatusBar, StackPills } from "@/components/projects/ProjectChrome"
+import { BackLink, ExternalLinks, ProjectChallenges } from "@/components/projects/ProjectChrome"
 import { FadeIn, FadeInView, StaggerContainer, StaggerItem } from "@/components/ui/motion"
 import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
@@ -25,10 +25,6 @@ export default function TodoskaLayout({ project, detail }: Props) {
         <AnimatedPage className="w-full flex flex-col gap-16 lg:gap-20 mt-16 lg:mt-10 mb-20 px-2 lg:px-4">
             <section className="flex flex-col gap-6">
                 <BackLink />
-
-                <FadeIn delay={0.1}>
-                    <ProjectStatusBar project={project} />
-                </FadeIn>
 
                 <FadeIn delay={0.18}>
                     <h1
@@ -56,7 +52,6 @@ export default function TodoskaLayout({ project, detail }: Props) {
                 <FadeIn delay={0.44}>
                     <div className="flex flex-wrap items-center gap-5">
                         <ExternalLinks project={project} />
-                        <StackPills stack={project.stack} />
                     </div>
                 </FadeIn>
             </section>
@@ -93,32 +88,9 @@ export default function TodoskaLayout({ project, detail }: Props) {
                 </StaggerContainer>
             </section>
 
-            <section className="flex flex-col gap-6" aria-label="Issues">
-                <Prompt label="git log --grep=fix" />
-                <div className="flex flex-col gap-3 font-mono text-sm">
-                    {detail.challenges.map((c, i) => (
-                        <FadeInView key={c.title}>
-                            <article className="p-5 rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/60 flex flex-col gap-3">
-                                <header className="flex items-center justify-between">
-                                    <span className="text-brand-peach">
-                                        commit {Math.abs(c.title.length * 7 + i * 11).toString(16).padStart(7, "0")}
-                                    </span>
-                                    <span className="text-zinc-500">fix: {c.title.toLowerCase()}</span>
-                                </header>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Block label="problem" body={c.problem} />
-                                    <Block label="approach" body={c.approach} />
-                                    {c.outcome ? (
-                                        <Block label="outcome" body={c.outcome} accent />
-                                    ) : (
-                                        <Block label="outcome" body="(open)" muted />
-                                    )}
-                                </div>
-                            </article>
-                        </FadeInView>
-                    ))}
-                </div>
-            </section>
+            <FadeInView>
+                <ProjectChallenges detail={detail} />
+            </FadeInView>
 
             <section className="flex flex-col gap-6" aria-label="Vlog">
                 <Prompt label="cat vlog.txt" />
@@ -197,32 +169,3 @@ function Prompt({ label }: { label: string }) {
     )
 }
 
-function Block({
-    label,
-    body,
-    accent,
-    muted,
-}: {
-    label: string
-    body: string
-    accent?: boolean
-    muted?: boolean
-}) {
-    return (
-        <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</span>
-            <p
-                className={cn(
-                    "text-sm leading-relaxed",
-                    accent
-                        ? "text-zinc-900 dark:text-zinc-100"
-                        : muted
-                          ? "text-zinc-400 dark:text-zinc-600 italic"
-                          : "text-zinc-600 dark:text-zinc-400"
-                )}
-            >
-                {body}
-            </p>
-        </div>
-    )
-}

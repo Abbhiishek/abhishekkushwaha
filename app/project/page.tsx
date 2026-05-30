@@ -21,57 +21,33 @@ export const metadata: Metadata = {
     }),
 }
 
-const statusDot: Record<Project["status"], string> = {
-    shipped: "bg-brand-peach",
-    ongoing: "bg-brand-pink",
-    archived: "bg-zinc-400 dark:bg-zinc-600",
-    sunset: "bg-zinc-400 dark:bg-zinc-600",
-}
-
-const statusLabel: Record<Project["status"], string> = {
-    shipped: "SHIPPED",
-    ongoing: "ONGOING",
-    archived: "ARCHIVED",
-    sunset: "SUNSET",
-}
-
 const projectVisuals: Record<string, {
     card: string
     glow: string
-    status: string
-    tag: string
     image: string
     rule: string
 }> = {
     emerald: {
         card: "bg-gradient-to-br from-emerald-50 via-white to-lime-50 ring-emerald-200/80 hover:ring-emerald-400/80 dark:from-emerald-950/40 dark:via-zinc-950/80 dark:to-lime-950/25 dark:ring-emerald-900/50 dark:hover:ring-emerald-500/50",
         glow: "bg-emerald-300/35 dark:bg-emerald-400/20",
-        status: "bg-emerald-500",
-        tag: "bg-emerald-100/80 text-emerald-800 ring-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-800/70",
         image: "ring-emerald-300/80 dark:ring-emerald-700/70",
         rule: "from-emerald-500 via-lime-400 to-cyan-400",
     },
     violet: {
         card: "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 ring-violet-200/80 hover:ring-violet-400/80 dark:from-violet-950/45 dark:via-zinc-950/80 dark:to-fuchsia-950/25 dark:ring-violet-900/50 dark:hover:ring-violet-500/50",
         glow: "bg-violet-300/35 dark:bg-violet-400/20",
-        status: "bg-violet-500",
-        tag: "bg-violet-100/80 text-violet-800 ring-violet-200 dark:bg-violet-950/70 dark:text-violet-200 dark:ring-violet-800/70",
         image: "ring-violet-300/80 dark:ring-violet-700/70",
         rule: "from-violet-500 via-fuchsia-400 to-sky-400",
     },
     sky: {
         card: "bg-gradient-to-br from-sky-50 via-white to-cyan-50 ring-sky-200/80 hover:ring-sky-400/80 dark:from-sky-950/45 dark:via-zinc-950/80 dark:to-cyan-950/25 dark:ring-sky-900/50 dark:hover:ring-sky-500/50",
         glow: "bg-sky-300/35 dark:bg-sky-400/20",
-        status: "bg-sky-500",
-        tag: "bg-sky-100/80 text-sky-800 ring-sky-200 dark:bg-sky-950/70 dark:text-sky-200 dark:ring-sky-800/70",
         image: "ring-sky-300/80 dark:ring-sky-700/70",
         rule: "from-sky-500 via-cyan-400 to-emerald-400",
     },
     amber: {
         card: "bg-gradient-to-br from-amber-50 via-white to-orange-50 ring-amber-200/80 hover:ring-amber-400/80 dark:from-amber-950/40 dark:via-zinc-950/80 dark:to-orange-950/25 dark:ring-amber-900/50 dark:hover:ring-amber-500/50",
         glow: "bg-amber-300/35 dark:bg-amber-400/20",
-        status: "bg-amber-500",
-        tag: "bg-amber-100/80 text-amber-900 ring-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:ring-amber-800/70",
         image: "ring-amber-300/80 dark:ring-amber-700/70",
         rule: "from-amber-500 via-orange-400 to-pink-400",
     },
@@ -145,17 +121,6 @@ function ProjectCard({ project }: { project: Project }) {
                     aria-hidden
                     className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent"
                 />
-                <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-1.5 rounded-full bg-white/85 px-2.5 py-1 text-zinc-800 shadow-sm backdrop-blur dark:bg-zinc-950/80 dark:text-zinc-200">
-                        <span className={cn("h-1.5 w-1.5 rounded-full", statusDot[project.status], project.status === "shipped" && visual.status)} />
-                        <span className="font-mono text-[9px] uppercase tracking-[0.16em]">
-                            {statusLabel[project.status]}
-                        </span>
-                    </div>
-                    <span className="rounded-full bg-white/85 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-700 shadow-sm backdrop-blur dark:bg-zinc-950/80 dark:text-zinc-300">
-                        {project.period}
-                    </span>
-                </div>
             </div>
 
             <section className="flex flex-1 flex-col gap-3 px-1 pb-1">
@@ -167,20 +132,6 @@ function ProjectCard({ project }: { project: Project }) {
                         {project.description}
                     </p>
                 </div>
-
-                <ul className="flex flex-wrap gap-1.5">
-                    {project.stack.map((s) => (
-                        <li
-                            key={s}
-                            className={cn(
-                                "font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 rounded ring-1",
-                                visual.tag
-                            )}
-                        >
-                            {s}
-                        </li>
-                    ))}
-                </ul>
 
                 <div className="mt-auto flex items-center justify-end font-mono text-[11px] tracking-[0.15em] text-zinc-500">
                     <span className="inline-flex items-center gap-1 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">

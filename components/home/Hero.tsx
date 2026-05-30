@@ -6,15 +6,9 @@ import { profileImagePath } from "@/lib/site"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
 import { motion } from "framer-motion"
-import { ArrowRight, Mail, MapPin, Sparkles } from "lucide-react"
+import { ArrowRight, Mail } from "lucide-react"
 import Link from "next/link"
 
-const surfaceTags = ["Voice agents", "AI search", "Ranking systems", "SaaS infrastructure"]
-const signals = [
-    "Founding engineer at HyrecruitAI",
-    "AI search, voice agents, ranking systems",
-    "Open to senior AI / product engineering roles",
-]
 const socialOrder = ["GitHub", "Twitter", "Dev.to", "NPM", "Hashnode"]
 
 export default function Hero() {
@@ -25,28 +19,16 @@ export default function Hero() {
     return (
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start lg:items-center w-full pt-2 lg:pt-4">
             <div className="lg:col-span-7 flex flex-col gap-7 order-1">
-                <FadeIn delay={0.05}>
-                    <div className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-500">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-peach opacity-60" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-peach" />
-                        </span>
-                        <span>Online / Building from Kolkata, IN</span>
-                    </div>
-                </FadeIn>
-
                 <FadeIn delay={0.15}>
                     <h1
                         className={cn(
-                            "leading-[1.05] tracking-tight text-zinc-900 dark:text-white text-[clamp(2.1rem,4.4vw,3.6rem)]",
+                            "max-w-2xl leading-[1.08] tracking-tight text-zinc-900 dark:text-white text-[clamp(1.9rem,3.6vw,3rem)]",
                             adlam_display.className
                         )}
                     >
-                        AI product engineer
+                        AI engineer building
                         <br />
-                        building real-time
-                        <br />
-                        <span className="text-brand-pink dark:text-brand-peach">intelligent systems.</span>
+                        <span className="text-brand-pink dark:text-brand-peach">reliable AI products.</span>
                     </h1>
                 </FadeIn>
 
@@ -63,19 +45,6 @@ export default function Hero() {
                         </Link>
                         .
                     </p>
-                </FadeIn>
-
-                <FadeIn delay={0.4}>
-                    <ul className="flex flex-wrap gap-x-2 gap-y-2" aria-label="Surface areas">
-                        {surfaceTags.map((tag) => (
-                            <li
-                                key={tag}
-                                className="font-mono text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 rounded ring-1 ring-zinc-200 dark:ring-zinc-800 text-zinc-600 dark:text-zinc-400"
-                            >
-                                {tag}
-                            </li>
-                        ))}
-                    </ul>
                 </FadeIn>
 
                 <FadeIn delay={0.5}>
@@ -135,50 +104,21 @@ export default function Hero() {
                                 aria-label="Abhishek Kushwaha"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/86 via-zinc-950/22 to-zinc-950/8" />
-                                <div className="absolute left-4 right-4 bottom-4 flex items-end justify-between gap-4">
+                                <div className="absolute left-4 right-4 bottom-4">
                                     <div className="flex flex-col gap-1">
                                         <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/60">
-                                            Portfolio / Senior AI
+                                            Portfolio
                                         </span>
                                         <strong className="text-xl font-semibold tracking-tight text-white">
                                             Abhishek Kushwaha
                                         </strong>
                                     </div>
-                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-medium text-white ring-1 ring-white/20 backdrop-blur">
-                                        <MapPin size={12} />
-                                        Kolkata
-                                    </span>
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                                {signals.map((signal) => (
-                                    <span
-                                        key={signal}
-                                        className="rounded-full border border-zinc-200/80 bg-white/65 px-3 py-2 text-xs leading-snug text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-300"
-                                    >
-                                        {signal}
-                                    </span>
-                                ))}
-                            </div>
-
-                            <Link
-                                href="/blog/flash-talent-search-scale"
-                                className="group flex items-center justify-between gap-4 rounded-xl border border-brand-peach/20 bg-[#101018] px-4 py-4 text-white ring-1 ring-white/10 transition-colors hover:border-brand-peach/45 hover:bg-[#151525] dark:border-brand-peach/20 dark:bg-zinc-950/70 dark:text-zinc-100 dark:hover:bg-zinc-900"
-                            >
-                                <span className="flex items-center gap-3 min-w-0">
-                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-peach/14 text-brand-peach ring-1 ring-brand-peach/25">
-                                        <Sparkles size={16} />
-                                    </span>
-                                    <span className="flex min-w-0 flex-col">
-                                        <span className="text-sm font-semibold">Latest product case study</span>
-                                        <span className="truncate text-xs text-zinc-400">
-                                            Flash: talent search at scale
-                                        </span>
-                                    </span>
-                                </span>
-                                <ArrowRight size={16} className="shrink-0 transition-transform group-hover:translate-x-0.5" />
-                            </Link>
+                            <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                                I build AI products where latency, evaluation quality, and product judgment all matter.
+                            </p>
                         </div>
                     </aside>
                 </FadeIn>
