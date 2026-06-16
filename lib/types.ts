@@ -13,7 +13,7 @@ export interface BlogPostWithContent extends BlogPost {
     html: string
 }
 
-export type ProjectLayout = "product" | "developer-ref" | "editorial" | "terminal"
+export type ProjectLayout = "product" | "developer-ref" | "editorial" | "terminal" | "utility-product"
 
 export type ProjectStatus = "shipped" | "ongoing" | "archived" | "sunset"
 

@@ -51,6 +51,24 @@ const projectVisuals: Record<string, {
         image: "ring-amber-300/80 dark:ring-amber-700/70",
         rule: "from-amber-500 via-orange-400 to-pink-400",
     },
+    rose: {
+        card: "bg-gradient-to-br from-rose-50 via-white to-red-50 ring-rose-200/80 hover:ring-rose-400/80 dark:from-rose-950/40 dark:via-zinc-950/80 dark:to-red-950/25 dark:ring-rose-900/50 dark:hover:ring-rose-500/50",
+        glow: "bg-rose-300/35 dark:bg-rose-400/20",
+        image: "ring-rose-300/80 dark:ring-rose-700/70",
+        rule: "from-rose-500 via-red-400 to-orange-400",
+    },
+    fuchsia: {
+        card: "bg-gradient-to-br from-fuchsia-50 via-white to-cyan-50 ring-fuchsia-200/80 hover:ring-fuchsia-400/80 dark:from-fuchsia-950/40 dark:via-zinc-950/80 dark:to-cyan-950/25 dark:ring-fuchsia-900/50 dark:hover:ring-fuchsia-500/50",
+        glow: "bg-fuchsia-300/35 dark:bg-fuchsia-400/20",
+        image: "ring-fuchsia-300/80 dark:ring-fuchsia-700/70",
+        rule: "from-fuchsia-500 via-cyan-400 to-emerald-400",
+    },
+    indigo: {
+        card: "bg-gradient-to-br from-indigo-50 via-white to-blue-50 ring-indigo-200/80 hover:ring-indigo-400/80 dark:from-indigo-950/40 dark:via-zinc-950/80 dark:to-blue-950/25 dark:ring-indigo-900/50 dark:hover:ring-indigo-500/50",
+        glow: "bg-indigo-300/35 dark:bg-indigo-400/20",
+        image: "ring-indigo-300/80 dark:ring-indigo-700/70",
+        rule: "from-indigo-500 via-blue-400 to-emerald-400",
+    },
 }
 
 export default function ProjectPage() {

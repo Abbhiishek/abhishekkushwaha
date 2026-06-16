@@ -1,5 +1,3 @@
-import fs from "fs"
-import path from "path"
 import showdown from "showdown"
 
 interface Frontmatter {
@@ -45,8 +43,7 @@ function parseFrontmatter(content: string): { frontmatter: Frontmatter; body: st
     return { frontmatter, body }
 }
 
-export function parseMarkdownFile(filePath: string): ParsedMarkdown {
-    const content = fs.readFileSync(filePath, "utf8")
+export function parseMarkdownContent(content: string): ParsedMarkdown {
     const { frontmatter, body } = parseFrontmatter(content)
     const converter = new showdown.Converter({
         metadata: true,
@@ -61,14 +58,6 @@ export function parseMarkdownFile(filePath: string): ParsedMarkdown {
     const html = converter.makeHtml(body)
 
     return { frontmatter, html, raw: body }
-}
-
-export function getMarkdownFiles(dirPath: string): string[] {
-    if (!fs.existsSync(dirPath)) return []
-    return fs
-        .readdirSync(dirPath)
-        .filter((f) => f.endsWith(".md"))
-        .map((f) => path.join(dirPath, f))
 }
 
 export function estimateReadingTime(text: string): number {

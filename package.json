@@ -8,7 +8,10 @@
     "start": "next start",
     "prettier": "prettier --write .",
     "lint": "eslint . --max-warnings 0",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "dev:vinext": "vinext dev --port 3001",
+    "build:vinext": "vinext build",
+    "start:vinext": "vinext start"
   },
   "dependencies": {
     "@commitlint/cli": "^19.3.0",
@@ -23,29 +26,37 @@
     "marked": "^12.0.2",
     "next": "^16.2.1",
     "next-themes": "^0.4.6",
-    "react": "^19",
-    "react-dom": "^19",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-icons": "^5.2.1",
     "showdown": "^2.1.0",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.3.0",
-    "tailwind-scrollbar": "^3.1.0"
+    "tailwind-scrollbar": "^3.1.0",
+    "vinext": "^0.1.3"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.40.2",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitejs/plugin-rsc": "^0.5.27",
     "eslint": "^9",
     "eslint-config-next": "^16.2.1",
     "husky": "^9.0.11",
     "postcss": "^8",
     "prettier": "^3.2.5",
+    "react-server-dom-webpack": "^19.2.7",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.0.16",
+    "wrangler": "^4.100.0"
   },
   "engines": {
     "node": ">=18.18.0",
     "npm": ">=10.0.0",
     "bun": ">=1.0.0"
-  }
+  },
+  "type": "module"
 }

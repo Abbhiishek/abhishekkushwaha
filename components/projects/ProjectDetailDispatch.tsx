@@ -3,6 +3,7 @@ import type { Project } from "@/lib/types"
 import CommunityMusicLayout from "./CommunityMusicLayout"
 import DevResumeLayout from "./DevResumeLayout"
 import TodoskaLayout from "./TodoskaLayout"
+import UtilityProductLayout from "./UtilityProductLayout"
 import WiidgetsLayout from "./WiidgetsLayout"
 
 interface Props {
@@ -20,6 +21,8 @@ export default function ProjectDetailDispatch({ project, detail }: Props) {
             return <CommunityMusicLayout project={project} detail={detail} />
         case "terminal":
             return <TodoskaLayout project={project} detail={detail} />
+        case "utility-product":
+            return <UtilityProductLayout project={project} detail={detail} />
         default:
             return <DevResumeLayout project={project} detail={detail} />
     }

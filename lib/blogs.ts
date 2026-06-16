@@ -1,14 +1,10 @@
-import path from "path"
-import { estimateReadingTime, getMarkdownFiles, parseMarkdownFile } from "./markdown"
+import { getBlogMarkdownContent, getBlogMarkdownEntries } from "./content"
+import { estimateReadingTime, parseMarkdownContent } from "./markdown"
 import { profileImagePath } from "./site"
 import type { BlogPost, BlogPostWithContent } from "./types"
 
-const BLOG_DIR = path.join(process.cwd(), "content", "blog")
-
-function fileToBlogPost(filePath: string): BlogPost {
-    const { frontmatter, raw } = parseMarkdownFile(filePath)
-    const slug = path.basename(filePath, ".md")
-
+function markdownToBlogPost(slug: string, content: string): BlogPost {
+    const { frontmatter, raw } = parseMarkdownContent(content)
     return {
         slug,
         title: frontmatter.title ?? slug,
@@ -22,15 +18,17 @@ function fileToBlogPost(filePath: string): BlogPost {
 }
 
 export function getAllBlogPosts(): BlogPost[] {
-    return getMarkdownFiles(BLOG_DIR)
-        .map(fileToBlogPost)
+    return getBlogMarkdownEntries()
+        .map(({ slug, content }) => markdownToBlogPost(slug, content))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
 export function getBlogPostBySlug(slug: string): BlogPostWithContent | null {
-    const filePath = path.join(BLOG_DIR, `${slug}.md`)
+    const content = getBlogMarkdownContent(slug)
+    if (!content) return null
+
     try {
-        const { frontmatter, html, raw } = parseMarkdownFile(filePath)
+        const { frontmatter, html, raw } = parseMarkdownContent(content)
         return {
             slug,
             title: frontmatter.title ?? slug,

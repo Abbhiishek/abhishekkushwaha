@@ -1,0 +1,28 @@
+
+--- 2026-06-16T09:38:56.317Z debug
+🪵  Writing logs to "C:\Users\abhis\work\personal\abhishekkushwaha\.wrangler\.wrangler\logs\wrangler-2026-06-16_09-38-53_042.log"
+---
+
+--- 2026-06-16T09:38:56.317Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-06-16T09:38:56.318Z debug
+.env file not found at "C:\Users\abhis\work\personal\abhishekkushwaha\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-06-16T09:38:56.318Z debug
+.env file not found at "C:\Users\abhis\work\personal\abhishekkushwaha\.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-06-16T09:38:59.609Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-06-16T09:38:59.609Z debug
+.env file not found at "C:\Users\abhis\work\personal\abhishekkushwaha\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-06-16T09:38:59.610Z debug
+.env file not found at "C:\Users\abhis\work\personal\abhishekkushwaha\.env.local". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---

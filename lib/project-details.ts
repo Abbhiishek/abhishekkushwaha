@@ -269,6 +269,192 @@ export const projectDetails: Record<string, ProjectDetail> = {
             },
         ],
     },
+    "pdf-kabootr": {
+        slug: "pdf-kabootr",
+        vision:
+            "PDF Tools was built as a browser-native document workspace: the kind of utility people can open, use once, and trust because the document never has to leave their machine. The product combines common PDF actions - merge, split, organize, compress, protect, sign, and convert - into a fast local-first interface instead of sending private files to a server.",
+        goals: [
+            "Keep PDF work private by doing processing on-device wherever the browser can support it.",
+            "Cover the high-frequency PDF jobs in one place: merge, split, reorder, rotate, delete pages, compress, protect, unlock, sign, and convert.",
+            "Make the first screen useful immediately with grouped tool cards instead of a marketing-heavy landing page.",
+            "Ship as a lightweight web app that can feel instant, keyboard-friendly, and installable.",
+        ],
+        challenges: [
+            {
+                title: "Trust is the product surface",
+                problem:
+                    "PDF tools often ask users to upload contracts, IDs, invoices, resumes, and other sensitive files. That creates friction before the user even starts.",
+                approach:
+                    "Positioned privacy as a product constraint and designed the tool around local browser processing, with copy and UI that make the no-upload model visible.",
+                outcome:
+                    "The app can be used for everyday document work without asking users to trade privacy for convenience.",
+            },
+            {
+                title: "Many tools without a messy dashboard",
+                problem:
+                    "A PDF toolkit quickly becomes a wall of unrelated buttons if merge, split, organize, sign, watermark, page numbers, metadata, and conversion are all treated equally.",
+                approach:
+                    "Grouped actions by job type - organize pages, edit and sign, convert, optimize, and protect - so users can scan by intent instead of reading every card.",
+                outcome:
+                    "The first screen works as the product navigation and as the product explanation.",
+            },
+            {
+                title: "Client-side processing constraints",
+                problem:
+                    "Browser-based PDF work has to balance file size, memory, page rendering, and export quality without a backend worker doing the heavy lifting.",
+                approach:
+                    "Kept the product focused on practical operations that map well to in-browser PDF libraries and progressive enhancement.",
+                outcome:
+                    "The app stays fast for normal document workflows while keeping the architecture simple and privacy-preserving.",
+            },
+        ],
+        learnings: [
+            "Privacy is easier to believe when the interaction model proves it.",
+            "Utility apps need direct information architecture more than decorative storytelling.",
+            "Local-first tools still need careful UX around file size, export state, and unsupported edge cases.",
+        ],
+        vlog: [
+            {
+                date: "Build note 01",
+                title: "The homepage became the tool picker",
+                body: "The useful path was not a long landing page. It was a grouped set of actions that let someone arrive with a PDF problem and choose the right operation immediately.",
+            },
+            {
+                date: "Build note 02",
+                title: "No upload had to be obvious",
+                body: "The privacy promise needed to show up in the hero, tool states, and product language because the whole category has trained users to expect server uploads.",
+            },
+            {
+                date: "Build note 03",
+                title: "PDF workflows are families",
+                body: "Merge and split are page organization problems. Watermarks, signing, and page numbers are editing problems. Grouping them this way made the app easier to scan.",
+            },
+        ],
+    },
+    "pixel-kabootr": {
+        slug: "pixel-kabootr",
+        vision:
+            "PixelMorph was designed as a private browser workspace for everyday image conversion and cleanup. Users can drop images, convert between PNG, JPG, WebP, GIF, SVG, ICO, and TIFF, then resize, compress, crop, adjust, and export in batches without accounts, quotas, or upload waiting.",
+        goals: [
+            "Make conversion feel instant for common image formats while keeping files inside the browser.",
+            "Support practical adjacent jobs: resize, compress, crop, color adjustments, favicon output, and batch ZIP download.",
+            "Handle large images based on device capacity instead of enforcing artificial server-side limits.",
+            "Build SEO-friendly format pages without making the converter itself feel bloated.",
+        ],
+        challenges: [
+            {
+                title: "Conversion without a server upload",
+                problem:
+                    "Most online converters send files to a backend. That makes privacy weaker and turns every conversion into a network-dependent job.",
+                approach:
+                    "Used browser-native image APIs and targeted JS/WASM support for less common formats so conversion can happen locally.",
+                outcome:
+                    "The product can promise no upload, no signup, and no quota as real architecture choices, not only marketing copy.",
+            },
+            {
+                title: "One workspace, many image jobs",
+                problem:
+                    "Users rarely need only format conversion. They often need to resize, compress, crop, or tweak the image before exporting.",
+                approach:
+                    "Kept conversion as the primary action while adding supporting tools around dimensions, quality, crop presets, and visual adjustments.",
+                outcome:
+                    "PixelMorph acts more like a compact image utility bench than a single-purpose converter.",
+            },
+            {
+                title: "Batch work and export ergonomics",
+                problem:
+                    "Converting one file is simple. Converting many files means progress, failures, file names, memory, and downloads become part of the experience.",
+                approach:
+                    "Designed the workflow around multiple input files, per-file results, individual downloads, and a single ZIP export for batches.",
+                outcome:
+                    "The tool works for real cleanup tasks, not only a one-off demo conversion.",
+            },
+        ],
+        learnings: [
+            "For utility products, speed and trust matter more than account systems.",
+            "Client-side processing makes privacy stronger but pushes responsibility into browser capability checks and memory handling.",
+            "Format coverage is useful only when paired with export controls people actually need.",
+        ],
+        vlog: [
+            {
+                date: "Build note 01",
+                title: "The file stayed local",
+                body: "The core decision was to treat image data as something the app reads and transforms in the browser, not something it owns on a server.",
+            },
+            {
+                date: "Build note 02",
+                title: "Converter became editor-lite",
+                body: "Resize, compress, crop, and adjustment controls turned out to be part of the same user job: prepare this image for the place it needs to go.",
+            },
+            {
+                date: "Build note 03",
+                title: "SEO and product had to coexist",
+                body: "The site can explain many format pairs for search while keeping the actual converter screen direct and low-friction.",
+            },
+        ],
+    },
+    "linky-kabootr": {
+        slug: "linky-kabootr",
+        vision:
+            "Linky is a modern link management platform for turning long URLs into branded short links with QR codes and real-time, privacy-first analytics. The product pairs edge redirects with campaign controls, device and geography targeting, UTM/referrer reporting, and link-level safeguards.",
+        goals: [
+            "Create short links with custom slugs, branded domains, and fast edge redirects.",
+            "Generate QR codes for every link with formats that work for digital and print sharing.",
+            "Show analytics that are useful without becoming invasive: clicks, country, device, browser, OS, referrer, and UTM attribution.",
+            "Build on Cloudflare Workers and D1 so redirects and analytics stay close to the edge.",
+        ],
+        challenges: [
+            {
+                title: "Redirect speed versus analytics depth",
+                problem:
+                    "A short-link product has to redirect quickly, but it also needs to record useful click data without slowing down the visitor.",
+                approach:
+                    "Framed the architecture around edge redirects and lightweight analytics capture, with the product promise centered on sub-10ms redirects.",
+                outcome:
+                    "The app can compete on speed while still giving users a meaningful reporting surface.",
+            },
+            {
+                title: "QR and link management belong together",
+                problem:
+                    "Teams often create a short link in one tool, a QR code in another, and then lose analytics once the code is printed.",
+                approach:
+                    "Made QR generation a first-class part of each link so the short URL, QR asset, and analytics all point to the same campaign object.",
+                outcome:
+                    "A link can move between web, slides, packaging, and print without losing measurement.",
+            },
+            {
+                title: "Privacy-first analytics",
+                problem:
+                    "Analytics products can drift into invasive tracking. A small link platform needs useful insight while respecting visitor data.",
+                approach:
+                    "Kept the product language and architecture focused on hashed IPs, campaign attribution, aggregate breakdowns, and ownership on Cloudflare's edge.",
+                outcome:
+                    "The reporting model stays useful for creators and marketers without leaning on third-party tracker behavior.",
+            },
+        ],
+        learnings: [
+            "A redirect product is infrastructure and UX at the same time.",
+            "QR codes are more valuable when they inherit analytics, targeting, and controls from the link object.",
+            "Edge-native storage and compute fit link management because latency is part of the product.",
+        ],
+        vlog: [
+            {
+                date: "Build note 01",
+                title: "The redirect path had to be small",
+                body: "Every extra decision in the redirect path shows up as latency, so the analytics and controls have to be designed around a fast hot path.",
+            },
+            {
+                date: "Build note 02",
+                title: "Analytics made the link feel alive",
+                body: "Country, device, referrer, and UTM breakdowns turn a short URL from a convenience feature into a campaign object.",
+            },
+            {
+                date: "Build note 03",
+                title: "QR was not an add-on",
+                body: "Once every link has a QR code, physical sharing and digital sharing become two views of the same object instead of separate workflows.",
+            },
+        ],
+    },
 }
 
 export function getProjectDetail(slug: string): ProjectDetail | undefined {

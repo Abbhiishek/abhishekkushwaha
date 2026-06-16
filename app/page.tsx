@@ -4,12 +4,12 @@ import CurrentFocus from '@/components/home/CurrentFocus';
 import Hero from '@/components/home/Hero';
 import SelectedWriting from '@/components/home/SelectedWriting';
 import { getFeaturedBlogPosts } from '@/lib/blogs';
-import { parseMarkdownFile } from '@/lib/markdown';
-import path from 'path';
+import { getMarkdownContent } from '@/lib/content';
+import { parseMarkdownContent } from '@/lib/markdown';
 
 export default function Home() {
-  const filePath = path.join(process.cwd(), "content", "now.md")
-  const { html } = parseMarkdownFile(filePath)
+  const nowMarkdown = getMarkdownContent("now.md") ?? ""
+  const { html } = parseMarkdownContent(nowMarkdown)
   const featuredPosts = getFeaturedBlogPosts()
 
   return (
