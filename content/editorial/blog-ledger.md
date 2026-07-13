@@ -4,7 +4,7 @@ This file records the editorial boundary for each portfolio article. It lives ou
 
 ## Protected-article audit
 
-The requested article named **"New System Design of Kubernetes"** was not present on `origin/main` when this rewrite began. No clearly matching Kubernetes system-design article was found in the current ten Markdown posts, remote branch names, historical blog paths, or fetched Git history. The only current body-text match for "Kubernetes" is a vocabulary example in the voice-agent article; that is not a Kubernetes system-design post.
+The requested article named **"New System Design of Kubernetes"** was not present on `origin/main` when this rewrite began. No clearly matching Kubernetes system-design article was found in the task-start inventory of ten Markdown posts, remote branch names, historical blog paths, or fetched Git history. The only task-start body-text match for "Kubernetes" was a vocabulary example in the voice-agent article; it was not a Kubernetes system-design post. Later editorial examples that mention the technology do not change this protected-article finding.
 
 If the protected article is restored later, it must be excluded from broad editorial rewrites unless the owner explicitly removes that protection.
 

@@ -1,118 +1,388 @@
 ---
-title: "Building a Real-Time AI Interviewer: Voice, Turn-Taking, and Latency Budgets"
-description: "How I think about real-time AI voice systems in production: audio streaming, speech detection, transcription, LLM turn-taking, and the latency budget that makes an agent feel alive."
-date: "2026-04-12"
+title: 'Building a Real-Time AI Interviewer: Turn-Taking, Barge-In, and Latency'
+description: 'A systems design for browser voice agents: media transport, voice activity detection, revisable transcripts, conversational state, interruption, latency budgets, and graceful recovery.'
+date: '2026-04-12'
 tags: voice-agent, realtime-ai, websockets, llm, ai-engineering
 coverImage: /me.webp
 featured: true
 ---
 
-The difference between a chatbot and a voice agent is not speech. It is timing.
+A voice agent is not a chatbot with speech attached.
 
-You can attach speech-to-text and text-to-speech to a normal LLM workflow and call it a voice agent, but users will feel the seams immediately. The agent cuts them off. It waits too long. It answers before the thought is finished. It speaks in paragraphs when a human would ask one sharp follow-up.
+Text interfaces wait for an explicit submit action. Conversation has overlapping speech, pauses inside a thought, background noise, corrections, interruptions, network jitter, and a social expectation that the other side knows when to speak. A system can use excellent speech and language models and still feel broken because it ends turns too early or keeps talking after the user interrupts.
 
-When I worked on AI interview flows, this became obvious very quickly. A live interview is not a document generation task. It is a real-time system with a conversation attached.
+The governing idea is:
 
-## The Product Constraint
+> Real-time voice quality comes from a well-instrumented turn state machine and a bounded latency budget, not from model quality alone.
 
-For an AI interviewer, the user does not care that the model is clever if the interaction feels broken. The system has to do five things well:
+This article uses an AI interview flow as a demanding example. It is a design analysis, not a claim about measured production outcomes. In consequential assessment, the voice agent should follow a narrow interview policy, preserve evidence, expose uncertainty, and leave final decisions to an appropriate human process.
 
-1. Capture clean audio from the browser.
-2. Detect when the candidate is actually done speaking.
-3. Transcribe technical language accurately.
-4. Generate a short, relevant next turn.
-5. Speak back fast enough that the conversation still feels alive.
+## The Full Duplex Pipeline
 
-That creates a practical latency budget. If the candidate stops speaking and the agent takes three seconds to respond, trust drops. If it responds in under a second, the experience feels conversational.
-
-The goal is not only lower latency. The goal is lower perceived latency with fewer conversational mistakes.
-
-## The Pipeline
-
-The basic pipeline looks simple:
-
-```txt
-Browser microphone
-  -> WebSocket audio stream
-  -> voice activity detection
-  -> speech-to-text
-  -> LLM turn generation
-  -> text-to-speech
-  -> browser playback
+```mermaid
+flowchart LR
+    A[Browser microphone] --> B[Audio capture and preprocessing]
+    B --> C[WebRTC or WebSocket transport]
+    C --> D[Server VAD and endpointing]
+    D --> E[Streaming speech recognition]
+    E --> F[Turn manager]
+    F --> G[LLM response planner]
+    G --> H[Text-to-speech]
+    H --> I[Playback and jitter buffer]
+    I --> J[Browser speaker]
+    J -. acoustic echo .-> A
+    B --> K[Barge-in detector]
+    K --> F
+    K --> H
 ```
 
-The implementation is where the real work begins.
+There are two simultaneous flows:
 
-Audio should be streamed in small chunks, not uploaded after the answer ends. The server needs enough buffering to avoid jitter, but not so much that every stage waits for a complete recording. The speech-to-text worker should receive audio as soon as there is a meaningful segment. The LLM should get a clean transcript plus the current interview state. The TTS layer should start as soon as the first usable sentence is available.
+- media flows in both directions;
+- control events coordinate who owns the conversational floor.
 
-That architecture is less glamorous than a demo video, but it is the part that decides whether the product feels serious.
+Mixing them into one undifferentiated stream makes interruption and recovery difficult. Audio packets, partial transcripts, turn-final events, tool decisions, and playback acknowledgements deserve explicit types.
 
-## Turn-Taking Is the Hardest Part
+## Choose Transport Based on Media Needs
 
-The first naive approach is silence detection: if the candidate is quiet for 500ms, assume the turn ended.
+| Property                              | WebRTC                              | WebSocket                           |
+| ------------------------------------- | ----------------------------------- | ----------------------------------- |
+| Browser media integration             | Native tracks and peer connections  | Application packetization           |
+| Congestion, jitter, and loss handling | Built for real-time media           | Must be designed by the application |
+| NAT traversal                         | ICE with STUN/TURN                  | Normal HTTPS/WebSocket path         |
+| Duplex audio                          | Natural                             | Straightforward but custom          |
+| Server infrastructure                 | More signaling and media complexity | Simpler ingress and debugging       |
+| Control messages                      | Data channel or separate API        | Same socket or separate channel     |
 
-That fails in interviews.
+WebRTC is a strong default when natural duplex audio and network adaptation matter. WebSockets can be appropriate for server-centric pipelines, controlled networks, or providers that accept framed PCM/Opus audio over a socket.
 
-People pause while thinking. They say "um" and restart. They stop for a second before giving the important part of the answer. If the agent jumps in during that pause, it feels rude and mechanical.
+The architecture can also be hybrid: WebRTC for browser-to-media-edge audio, a data channel for low-latency control, and normal HTTPS for session creation, policy, and durable results.
 
-A better approach is voice activity detection plus conversational heuristics:
+## Capture Audio Without Blocking the Main Thread
 
-- Has the user spoken for long enough to count as an answer?
-- Is the trailing silence long enough?
-- Did the transcript end in an incomplete phrase?
-- Is the current question asking for a long-form explanation?
-- Did the candidate explicitly say they are done?
+Browser capture begins with a user permission boundary:
 
-The agent should not treat silence as the only signal. Silence is an input, not a decision.
+```ts
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    channelCount: 1,
+  },
+});
+```
 
-## Transcription Needs Domain Context
+Constraints are requests, not guarantees. Inspect the selected track's settings and test real browsers, headsets, laptop microphones, and mobile devices.
 
-Generic transcription can handle daily conversation. Interviews contain vocabulary like "Kubernetes", "Postgres indexes", "event sourcing", "React Server Components", "latency", and "WebRTC". If the transcript corrupts those terms, the evaluation and follow-up quality suffer.
+Use `AudioWorklet` for custom audio processing that must run off the main thread. Avoid the deprecated `ScriptProcessorNode`. A worklet can meter levels, resample when necessary, and package frames without competing with React rendering.
 
-The fix is not only choosing a better STT model. The system should pass domain hints whenever possible:
+Keep the raw-audio path narrow:
 
-- role being interviewed for
-- question category
-- expected technical vocabulary
-- previous transcript context
-- known company or stack terms
+1. capture at the browser's native rate;
+2. apply browser audio processing only when it improves the target environment;
+3. encode or resample once when possible;
+4. timestamp frames with a monotonic clock;
+5. bound the client buffer;
+6. drop or recover according to media policy rather than letting latency grow forever.
 
-In an interview setting, transcription is not a standalone feature. It is part of the reasoning pipeline.
+A voice system should prefer a short, intelligible gap over delivering several seconds of stale audio after the network recovers.
 
-## LLM Turns Should Be Small
+## Conversation Needs an Explicit State Machine
 
-The LLM should not behave like a blog writer during a live conversation. It should be brief, specific, and stateful.
+```mermaid
+stateDiagram-v2
+    [*] --> connecting
+    connecting --> listening
+    listening --> user_speaking: speech_start
+    user_speaking --> endpointing: probable_speech_end
+    endpointing --> user_speaking: speech_resumed
+    endpointing --> thinking: turn_committed
+    thinking --> agent_speaking: first_audio_ready
+    agent_speaking --> interrupted: user_barge_in
+    interrupted --> user_speaking: playback_stopped
+    agent_speaking --> listening: playback_complete
+    thinking --> recovering: timeout_or_error
+    agent_speaking --> recovering: media_failure
+    recovering --> listening: session_resumed
+```
 
-A good interviewer turn often does one of three things:
+Persist important transitions with timestamps. The current state should answer:
 
-- asks a follow-up on a missing detail
-- moves to the next question
-- asks for clarification when the answer is ambiguous
+- Is user audio being accepted?
+- Is the transcript provisional or committed?
+- Is model generation active?
+- Is agent audio queued or playing?
+- Can a barge-in cancel the current response?
+- Which event made the system change state?
 
-The prompt should constrain that behavior. The model needs the current question, a small slice of history, the candidate transcript, and the interview policy. It does not need the entire session every time.
+Avoid deriving state from UI animation or socket presence. A connected socket can carry a failed session; a spinner is not a state transition.
 
-The response should also be streamable. If the first sentence is ready, TTS can begin while the rest of the response is still completing. That does not reduce total compute time, but it reduces the time the user spends waiting.
+## Voice Activity Detection Is Only the First Vote
 
-## What I Would Watch in Production
+Silence alone is a poor endpoint detector. People pause before examples, numbers, or corrections. A fixed timeout either interrupts thoughtful speakers or makes every turn feel slow.
 
-For this kind of system, I would track more than API latency.
+Use layered endpointing signals:
 
-Important metrics:
+| Signal                         | Contribution                                           |
+| ------------------------------ | ------------------------------------------------------ |
+| Acoustic VAD                   | Detects probable speech and silence                    |
+| Adaptive noise floor           | Prevents a fan or room noise from looking like speech  |
+| Partial transcript punctuation | Suggests grammatical completion                        |
+| Lexical cues                   | "That is my answer" can strengthen endpoint confidence |
+| Syntactic/semantic completion  | Distinguishes a clause pause from a finished thought   |
+| Maximum turn timer             | Prevents an unbounded open turn                        |
+| User control                   | A visible "done" action resolves ambiguity accessibly  |
 
-- end-of-speech to first audio byte
-- false turn-end rate
-- candidate interruption rate
-- transcription confidence by question type
-- retry rate for STT, LLM, and TTS
-- average answer duration
-- abandon rate after agent response delays
+Endpointing can be modeled as a score:
 
-The strongest metric is not a backend metric at all. It is whether users continue speaking naturally after the first few turns. If they do, the system is earning trust.
+```txt
+commit_turn when
+  silence_duration > adaptive_minimum
+  and completion_confidence > threshold
+or explicit_done
+or maximum_turn_duration_exceeded
+```
 
-## The Engineering Lesson
+The score and thresholds should vary by language, environment, and interaction style. Keep an immediate rollback path because endpointing changes alter the personality of the entire product.
 
-Real-time AI products are not just model wrappers. They are distributed systems with user psychology in the loop.
+## Partial Transcripts Are Revisable State
 
-The model matters, but the product quality comes from everything around it: buffering, turn detection, prompt constraints, streaming, retries, fallbacks, and observability.
+Streaming speech recognition commonly emits interim hypotheses that change as more audio arrives.
 
-That is the kind of AI engineering I enjoy most. Not "call an API and display text", but building the system around the model so the experience feels reliable, useful, and human enough to keep going.
+```ts
+type TranscriptEvent = {
+  segmentId: string;
+  revision: number;
+  text: string;
+  startMs: number;
+  endMs: number;
+  final: boolean;
+  confidence?: number;
+};
+```
+
+The client or server replaces the same segment when `revision` increases. Appending every partial produces duplicated words and sends unstable text to the language model.
+
+Commit a user turn only after endpointing and final transcript reconciliation, or explicitly tell the response planner which words remain provisional. Preserve audio timestamps so a reviewer can align source audio, transcript, and generated follow-up when policy allows recording.
+
+Technical interviews need vocabulary support, but keyword bias can also distort ordinary speech. Supply role-specific phrases, product names, and programming terms conservatively, measure substitutions, and keep the original audio or correction workflow where appropriate.
+
+## Budget Latency by Stage
+
+One total number hides where the delay lives. Instrument the critical path from probable user endpoint to audible agent response.
+
+```txt
+turn latency =
+  endpoint decision
+  + final transcript stabilization
+  + request routing and queueing
+  + model time to first useful output
+  + TTS time to first audio
+  + network and playback buffering
+```
+
+Track at least:
+
+- speech-start detection delay;
+- endpoint decision delay;
+- final transcript delay;
+- model request queue delay;
+- model time to first token and first complete clause;
+- TTS time to first audio frame;
+- first audio frame to browser playout;
+- total silence between speakers;
+- interruption-to-playback-stop delay.
+
+Use p50, p95, and worst-case samples by device, network type, language, and session state. A fast median can hide a long tail that makes conversation unreliable.
+
+Streaming the model directly into TTS can lower first-audio latency, but synthesizing unstable fragments creates awkward corrections and intonation. Buffer to a meaningful phrase or clause, then stream audio while the next clause is generated.
+
+## Barge-In Must Cancel the Whole Outbound Path
+
+When the user starts speaking during agent playback, lowering the volume is not enough.
+
+```mermaid
+sequenceDiagram
+    participant Mic
+    participant Turn as Turn manager
+    participant Model
+    participant TTS
+    participant Player
+    Mic->>Turn: confirmed user speech
+    Turn->>Player: stop and flush queued audio
+    Turn->>TTS: cancel synthesis
+    Turn->>Model: abort response generation
+    Turn->>Turn: mark assistant turn interrupted
+    Turn->>Mic: accept new user turn
+```
+
+The system must know exactly what the user heard. If three sentences were generated but only one was played, conversation history should not pretend all three were delivered. Record playback acknowledgements or timestamps and add only delivered content, plus an interruption marker, to the next model context.
+
+Echo cancellation complicates barge-in. The microphone can hear the agent's speaker output and falsely detect user speech. Combine browser echo cancellation, server-side reference audio where available, and a confirmation window before cancelling valuable work.
+
+## The Response Planner Should Be Brief by Construction
+
+Voice output has a lower tolerance for long responses than text. The model should receive a narrow contract:
+
+```ts
+type InterviewTurnContext = {
+  interviewPolicyVersion: string;
+  currentQuestion: string;
+  committedTranscript: string;
+  deliveredAssistantSummary: string;
+  allowedActions: Array<'ask_follow_up' | 'clarify' | 'move_next'>;
+  remainingTimeSeconds: number;
+};
+```
+
+The response schema can constrain verbosity and action:
+
+```json
+{
+  "action": "ask_follow_up",
+  "spokenText": "What trade-off would change if writes were much more frequent?",
+  "reasonCode": "missing_write_cost_tradeoff"
+}
+```
+
+Generate internal policy decisions separately from spoken language. Validate the action and reason code before synthesis. Do not let spoken user content redefine system policy or authorize tools.
+
+For an interview use case, prohibit unsupported judgments about personality, protected attributes, emotion, honesty, or employability. The voice agent can ask and clarify within an approved structure; evaluation and final decisions belong to a separately governed process.
+
+## Tool Calls Need a Safe Pause
+
+A voice model may decide to fetch a question, save a note, advance the interview, or end the session. Tool calls are side effects and need explicit authorization.
+
+- validate arguments against the current session and tenant;
+- make state-changing calls idempotent;
+- require confirmation for destructive or surprising actions;
+- do not speak success before the tool succeeds;
+- define what the user hears while a slow tool runs;
+- cancel or ignore stale tool results after a barge-in or state change.
+
+The turn manager, not the model, owns the authoritative session state.
+
+## Playback Is a Media Pipeline
+
+TTS output still has to survive the network and browser.
+
+Use sequence numbers and timestamps for audio chunks. A small jitter buffer smooths network variation, but an unbounded buffer creates conversational lag. Monitor:
+
+- queued audio duration;
+- missing or late chunks;
+- decoder errors;
+- time from first received frame to playout;
+- underruns and audible gaps;
+- flush completion after barge-in.
+
+On WebRTC, built-in jitter and congestion mechanisms handle much of the media behavior. On WebSockets, the application must define chunk framing, ordering, buffering, and late-packet policy.
+
+## Recover by Degrading Capability
+
+Real-time sessions fail partially. Design a ladder:
+
+1. **Normal duplex voice:** streaming recognition, model, and TTS.
+2. **Higher-buffer voice:** tolerate more latency during network instability.
+3. **Push-to-talk:** replace uncertain endpointing with explicit user control.
+4. **Text fallback:** preserve the session and continue without audio.
+5. **Save and resume:** persist committed turns and reconnect later.
+
+A reconnect should use a session ID and last acknowledged control sequence, not create a new interview silently. Rotate short-lived media credentials without changing the durable session identity.
+
+## Observability Should Reconstruct One Turn
+
+Use a shared `sessionId` and `turnId` across browser, media edge, STT, turn manager, model, TTS, and playback events.
+
+```json
+{
+  "sessionId": "session_01...",
+  "turnId": "turn_07",
+  "state": "agent_speaking",
+  "timestamps": {
+    "speechStart": 0,
+    "probableSpeechEnd": 0,
+    "turnCommitted": 0,
+    "finalTranscript": 0,
+    "modelFirstToken": 0,
+    "ttsFirstAudio": 0,
+    "playoutStarted": 0
+  },
+  "transport": "webrtc",
+  "interrupted": false
+}
+```
+
+The zeroes show the event shape, not claimed latency.
+
+Monitor distributions and failure categories:
+
+- false and missed speech starts;
+- premature and late endpoints;
+- transcript revisions after turn commit;
+- user barge-ins and false barge-ins;
+- long silence between turns;
+- model, TTS, and media errors;
+- reconnect and fallback rates;
+- incomplete sessions by failure stage.
+
+Pair telemetry with privacy controls. Audio and transcripts are sensitive. Collect only what the product needs, disclose retention, restrict access, support deletion, and separate operational timing from content logging.
+
+## Common Failure Modes
+
+### Fixed silence timeout cuts off thoughtful answers
+
+Use adaptive endpointing with transcript and explicit-done signals, then evaluate by language and speaking style.
+
+### Partial transcripts are appended as final text
+
+Words duplicate and the model responds to an unstable sentence. Replace by segment revision and commit once.
+
+### Barge-in stops playback but not generation
+
+The system keeps spending and may pollute conversation history with unheard text. Cancel model and TTS, flush audio, and record delivered content.
+
+### Main-thread audio processing causes gaps
+
+Rendering pauses delay frame handling. Move custom processing into `AudioWorklet` and bound buffers.
+
+### One latency metric hides the bottleneck
+
+The total looks slow but gives no action. Timestamp every stage and analyze tails by environment.
+
+### Reconnect creates a second session
+
+State and interview policy diverge. Resume by durable session and sequence with short-lived media credentials.
+
+### The agent speaks tool success too early
+
+The action later fails. Validate and execute the tool before synthesizing confirmation.
+
+## Operational Checklist
+
+- [ ] Is transport chosen explicitly for duplex media and network behavior?
+- [ ] Is browser audio processing off the main thread where needed?
+- [ ] Are media and control events separately typed and sequenced?
+- [ ] Does a documented state machine own turn transitions?
+- [ ] Does endpointing combine acoustic, transcript, timing, and user signals?
+- [ ] Are partial transcripts revisable and final turns immutable?
+- [ ] Is latency measured per stage at median and tail percentiles?
+- [ ] Does barge-in cancel playback, TTS, generation, and unheard history?
+- [ ] Are model actions constrained by policy and validated before tools run?
+- [ ] Can the session degrade to push-to-talk, text, or resumable state?
+- [ ] Can one turn be reconstructed across every service without routine content logging?
+- [ ] Are audio consent, retention, access, export, and deletion policies enforced?
+
+## Takeaway
+
+The difficult part of a voice agent is deciding whose turn it is and keeping every subsystem consistent with that decision.
+
+A robust design uses a duplex media transport, an explicit turn state machine, layered endpointing, revisable transcripts, per-stage latency budgets, and a barge-in path that cancels every outbound component. When recovery and policy are built into the same control plane, the conversation can remain understandable even when models, networks, and microphones are imperfect.
+
+## Primary references
+
+- [W3C: WebRTC Recommendation](https://www.w3.org/TR/webrtc/)
+- [W3C: Media Capture and Streams](https://www.w3.org/TR/mediacapture-streams/)
+- [MDN: WebRTC API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API)
+- [MDN: `getUserMedia`](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
+- [MDN: `AudioWorklet`](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet)

@@ -1,245 +1,414 @@
 ---
-title: "Streaming LLM Responses in Production: SSE, Backpressure, and Per-Tenant Token Budgets in Next.js"
-description: "How we built real-time AI feedback streaming for HyrecruitAI interviews — handling SSE reconnection, backpressure, and per-tenant cost attribution."
-date: "2026-04-17"
+title: 'Streaming LLM Responses with SSE and Next.js'
+description: 'A production-oriented SSE protocol for LLM runs: explicit events, backpressure, cancellation, reconnection, replay, terminal usage accounting, and operational guardrails.'
+date: '2026-04-17'
 tags: llm, streaming, sse, nextjs, typescript
 coverImage: /thumbnail.jpg
 featured: false
 ---
 
-Candidates in an AI-powered interview don't want to stare at a spinner for eight seconds. They want to see the model think — token by token, like a conversation. We knew this from day one, but getting streaming right in production is a different beast from the OpenAI quickstart demo. Here's what we learned building real-time LLM streaming for HyrecruitAI, including how we handle backpressure, reconnects, and per-tenant token budgets without leaking costs or state across tenants.
+Streaming improves an LLM interface before it improves the model.
 
-## The Problem
+The user sees useful text earlier, progress becomes visible, and cancellation can stop work that is no longer wanted. But token delivery also turns one request-response operation into a distributed state machine. The browser can disconnect after the provider has generated output. A proxy can buffer chunks. A reconnect can accidentally start a second generation. Usage can be recorded before the final provider event or not recorded at all.
 
-Our first pass at interview feedback used standard request-response: fire a prompt, wait, return the full JSON blob. Average latency: **7.2 seconds**. Candidate NPS on that UX was measurably worse than competitors, even when the feedback quality was better. Users couldn't tell the AI was working — they just saw a frozen screen and assumed the platform was broken.
+The important design choice is not the loop that writes tokens. It is the protocol around the loop:
 
-Three specific failure modes drove us to streaming:
+> A streamed generation is a durable run with ordered events, explicit terminal states, idempotent creation, and one authoritative usage record.
 
-1. **Perceived latency killed engagement.** 7s wait on a feedback page → 23% drop-off before reading.
-2. **Long completions hit Vercel's 10s serverless timeout** on complex technical questions where the model generated detailed code corrections.
-3. **Cost attribution was impossible.** We billed tenants by tokens, but batch responses gave us no visibility into per-stream usage until the bill landed.
+## SSE Is a Wire Format and a Browser API
 
-Switching to streaming solved the UX issue and surfaced the infrastructure problems we hadn't designed for.
+Server-Sent Events use the `text/event-stream` format. Each event is a sequence of fields terminated by a blank line:
 
-## The Solution
+```txt
+id: 42
+event: delta
+data: {"text":"A streamed fragment"}
 
-We stream responses using the [Vercel AI SDK](https://sdk.vercel.ai/docs) on top of Next.js Route Handlers with `ReadableStream`. The core of it looks deceptively simple:
+```
 
-```typescript
-// app/api/interview/feedback/route.ts
-import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { openai } from '@/lib/openai';
-import { getTenantContext } from '@/lib/tenant';
-import { checkTokenBudget, recordTokenUsage } from '@/lib/billing';
+The browser's `EventSource` API consumes this format, automatically reconnects, and sends the last processed event ID on reconnection. `EventSource` is one-way and opens a GET request.
 
-export const runtime = 'edge';
-export const maxDuration = 60;
+That creates two reasonable patterns for LLM products.
 
-export async function POST(req: Request) {
-  const { questionId, transcript, tenantId } = await req.json();
-  
-  const tenant = await getTenantContext(tenantId);
-  const budget = await checkTokenBudget(tenant);
-  
-  if (budget.remaining < 500) {
-    return new Response(
-      JSON.stringify({ error: 'monthly_token_budget_exceeded' }),
-      { status: 429 }
-    );
-  }
+### Pattern A: POST and stream the response with `fetch`
 
-  const systemPrompt = await loadPrompt('interview-feedback', tenant.planTier);
+The client sends the prompt in a POST request and reads the response body with a `ReadableStream`. This is simple and keeps creation and streaming together, but automatic `EventSource` reconnection and `Last-Event-ID` behavior do not apply. The application must define its own resume protocol.
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    stream: true,
-    max_tokens: Math.min(budget.remaining, 1200),
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: buildFeedbackPrompt(transcript) },
-    ],
+### Pattern B: create a run, then subscribe with `EventSource`
+
+1. `POST /api/ai/runs` validates the request and creates an idempotent run.
+2. `GET /api/ai/runs/{id}/events` streams ordered events.
+3. A worker or request-scoped producer executes the model call.
+4. Reconnects subscribe to the existing run instead of starting another one.
+
+This article uses Pattern B because it separates command from observation and makes reconnect behavior explicit.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant API
+    participant EventLog
+    participant Worker
+    participant Model
+    participant Ledger
+    Browser->>API: POST create run + idempotency key
+    API->>EventLog: Persist queued run
+    API-->>Browser: 202 { runId }
+    Browser->>API: GET run events
+    Worker->>Model: Start generation
+    Model-->>Worker: Output fragments and usage
+    Worker->>EventLog: Append ordered events
+    EventLog-->>Browser: SSE replay and live events
+    Worker->>Ledger: Record final usage once
+```
+
+## Model the Run State Before the Event Stream
+
+The run has a small set of legal states:
+
+```txt
+queued -> running -> completed
+                 -> failed
+                 -> cancelled
+```
+
+Terminal states are immutable. A reconnect can observe a completed run, but it cannot turn it back into `running`. A retry creates a new run linked to the previous attempt unless the provider operation itself is safely resumable.
+
+```ts
+type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+type GenerationRun = {
+  runId: string;
+  tenantId: string;
+  actorId: string;
+  state: RunState;
+  idempotencyKey: string;
+  model: string;
+  promptVersion: string;
+  lastSequence: number;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+};
+```
+
+Create the run and enforce uniqueness on `(tenant_id, idempotency_key)`. If the browser retries the POST because it did not receive the response, return the existing run ID.
+
+## Define a Small, Versioned Event Protocol
+
+Do not stream untyped text and infer completion from socket closure. Use explicit events.
+
+```ts
+type StreamEvent =
+  | { type: 'run'; runId: string; state: 'queued' | 'running' }
+  | { type: 'delta'; text: string }
+  | { type: 'citation'; citationId: string; title: string; href: string }
+  | { type: 'usage'; inputUnits: number; outputUnits: number }
+  | { type: 'done'; finishReason: string }
+  | { type: 'run_error'; code: string; retryable: boolean; message: string };
+```
+
+Every persisted event also has:
+
+- run ID;
+- monotonically increasing sequence;
+- protocol version;
+- timestamp;
+- visibility classification;
+- optional provider request ID.
+
+The terminal protocol is strict:
+
+- `done` follows a successful final usage record;
+- `run_error` follows a durable failed state;
+- `cancelled` can be represented as a `run_error` code or a dedicated terminal event;
+- socket closure without a terminal event means "connection lost," not "run failed."
+
+## Encode SSE Correctly
+
+JSON keeps `data` on one line and avoids the multiline rules of raw text.
+
+```ts
+type PersistedEvent = {
+  sequence: number;
+  type: StreamEvent['type'];
+  payload: StreamEvent;
+};
+
+function encodeSSE(event: PersistedEvent): Uint8Array {
+  const encoder = new TextEncoder();
+  const body = [
+    `id: ${event.sequence}`,
+    `event: ${event.type}`,
+    `data: ${JSON.stringify(event.payload)}`,
+    '',
+    '',
+  ].join('\n');
+
+  return encoder.encode(body);
+}
+```
+
+Validate event names and never interpolate arbitrary untrusted text into `id` or `event`. JSON serialization protects the data field from accidental line breaks, but the client must still render text safely rather than inserting generated HTML.
+
+SSE comments can keep an otherwise idle connection active:
+
+```txt
+: heartbeat
+
+```
+
+The heartbeat is transport health, not run progress. Do not reset a product timeout merely because the TCP connection is alive.
+
+## A Next.js Route Handler
+
+The event endpoint authorizes the run, replays events after `Last-Event-ID`, then follows new events. One pump owns the writer so heartbeats and data cannot interleave at byte boundaries.
+
+```ts
+import { NextRequest } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  const runId = request.nextUrl.searchParams.get('runId');
+  if (!runId)
+    return Response.json({ error: 'runId is required' }, { status: 400 });
+
+  const ctx = await requireTenantContext(request);
+  await authorizeRun(ctx, runId);
+
+  const lastEventId = Number(request.headers.get('last-event-id') ?? '0');
+  const abortController = new AbortController();
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+
+  request.signal.addEventListener('abort', () => abortController.abort(), {
+    once: true,
   });
 
-  const stream = OpenAIStream(response, {
-    onCompletion: async (completion) => {
-      const tokenCount = estimateTokens(completion);
-      await recordTokenUsage(tenantId, questionId, tokenCount);
+  void (async () => {
+    try {
+      for await (const event of subscribeToRun({
+        tenantId: ctx.tenantId,
+        runId,
+        afterSequence: Number.isFinite(lastEventId) ? lastEventId : 0,
+        signal: abortController.signal,
+      })) {
+        await writer.write(encodeSSE(event));
+      }
+    } catch (error) {
+      if (!abortController.signal.aborted) {
+        await reportStreamTransportError({ runId, error });
+      }
+    } finally {
+      await writer.close().catch(() => undefined);
+    }
+  })();
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   });
-
-  return new StreamingTextResponse(stream);
 }
 ```
 
-The `onCompletion` callback is the key piece. It fires once the stream closes — successfully or not — letting us record actual token usage server-side before the response is fully consumed by the client. This replaced our previous approach of estimating from the input prompt length, which was off by up to 40% for long technical completions.
+`X-Accel-Buffering` is understood by some Nginx deployments; it is not a web standard. The hosting platform, CDN, reverse proxy, and compression middleware must all be tested for streaming behavior.
 
-## The Iteration
+The example uses a query parameter for an opaque run ID. Never put prompts, API keys, access tokens, or private content in the URL because URLs commonly appear in logs and browser history.
 
-### First failure: SSE reconnects duplicating tokens
+## Browser Subscription
 
-The first production issue hit within a week. When a candidate's network dropped mid-stream, the browser auto-reconnected via SSE's built-in retry mechanism. The Route Handler had no idea the previous stream was mid-flight — it started a new completion from scratch and charged the tenant for two full responses.
-
-The fix was a stream ID + Redis idempotency layer:
-
-```typescript
-// lib/stream-session.ts
-import { redis } from '@/lib/redis';
-
-const STREAM_TTL_SECONDS = 300;
-
-export async function getOrCreateStreamSession(
-  streamId: string,
-  tenantId: string
-): Promise<{ cached: boolean; buffer: string | null }> {
-  const key = `stream:${tenantId}:${streamId}`;
-  const existing = await redis.get(key);
-
-  if (existing) {
-    return { cached: true, buffer: existing as string };
-  }
-
-  // Reserve the slot before starting completion
-  await redis.setex(key, STREAM_TTL_SECONDS, '');
-  return { cached: false, buffer: null };
-}
-
-export async function appendStreamChunk(
-  streamId: string,
-  tenantId: string,
-  chunk: string
-): Promise<void> {
-  const key = `stream:${tenantId}:${streamId}`;
-  await redis.append(key, chunk);
-  await redis.expire(key, STREAM_TTL_SECONDS);
-}
-```
-
-On reconnect, the client sends the same `streamId`. If Redis has content for it, we replay the buffered chunks first and then continue from where we left off — or serve the full cached response if the stream already completed. We only call OpenAI once per `streamId`.
-
-### Second failure: backpressure under load
-
-Edge functions have no native backpressure. When 40 concurrent streams hit during a batch interview session (a hiring drive for one enterprise customer), the Route Handler was creating 40 simultaneous OpenAI connections. OpenAI's rate limiter responded with 429s, the streams failed silently, and candidates saw partial feedback cut off mid-sentence.
-
-We wired in a concurrency limiter using a lightweight semaphore backed by Redis atomic operations:
-
-```typescript
-// lib/stream-concurrency.ts
-import { redis } from '@/lib/redis';
-
-const GLOBAL_CONCURRENCY_LIMIT = 25;
-const PER_TENANT_LIMIT = 5;
-
-export async function acquireStreamSlot(tenantId: string): Promise<boolean> {
-  const globalKey = 'stream:global:active';
-  const tenantKey = `stream:tenant:${tenantId}:active`;
-
-  const [global, perTenant] = await redis.mget(globalKey, tenantKey);
-
-  const globalCount = parseInt(global ?? '0', 10);
-  const tenantCount = parseInt(perTenant ?? '0', 10);
-
-  if (globalCount >= GLOBAL_CONCURRENCY_LIMIT) return false;
-  if (tenantCount >= PER_TENANT_LIMIT) return false;
-
-  // Atomic increment — if another request raced us, we'll exceed limit by 1
-  // Acceptable for soft limits; use Lua script for hard limits
-  await redis.incr(globalKey);
-  await redis.incr(tenantKey);
-  await redis.expire(globalKey, 120);
-  await redis.expire(tenantKey, 120);
-
-  return true;
-}
-
-export async function releaseStreamSlot(tenantId: string): Promise<void> {
-  await redis.decr('stream:global:active');
-  await redis.decr(`stream:tenant:${tenantId}:active`);
-}
-```
-
-The route handler wraps the entire completion in acquire/release:
-
-```typescript
-const acquired = await acquireStreamSlot(tenantId);
-if (!acquired) {
-  return new Response(
-    JSON.stringify({ error: 'too_many_concurrent_streams', retryAfter: 5 }),
-    { status: 503, headers: { 'Retry-After': '5' } }
+```ts
+function subscribe(runId: string) {
+  const source = new EventSource(
+    `/api/ai/events?runId=${encodeURIComponent(runId)}`,
+    {
+      withCredentials: true,
+    }
   );
+
+  source.addEventListener('delta', (event) => {
+    const payload = JSON.parse((event as MessageEvent).data) as {
+      type: 'delta';
+      text: string;
+    };
+
+    appendText(payload.text);
+  });
+
+  source.addEventListener('done', (event) => {
+    const payload = JSON.parse((event as MessageEvent).data);
+    markCompleted(payload.finishReason);
+    source.close();
+  });
+
+  source.addEventListener('error', () => {
+    // EventSource may reconnect automatically. Do not mark the run failed
+    // until a terminal application event or status endpoint says so.
+    markConnectionInterrupted();
+  });
+
+  return () => source.close();
 }
-
-try {
-  // ... streaming logic
-} finally {
-  await releaseStreamSlot(tenantId);
-}
 ```
 
-Clients respect the `Retry-After` header and back off for 5 seconds before re-attempting. Under the batch load that triggered the original failures, this brought OpenAI 429s from 18% of requests to under 0.3%.
+`EventSource` error events represent connection trouble and are not the same as the application-level `event: run_error`. Keeping those names distinct prevents a reconnect from looking like a failed run.
 
-## Architecture / Flow Diagram
+Under HTTP/1.1, browsers historically impose a low per-origin connection limit, which can be painful when many tabs each open an SSE stream. HTTP/2 negotiates multiple streams over one connection, but the application should still close idle subscriptions and avoid one connection per UI widget.
 
+## Backpressure Is End-to-End
+
+Awaiting `writer.write` respects the Web Streams queue, but it does not guarantee the model provider will slow down. Many provider SDKs continue receiving data into their own buffers.
+
+Set explicit bounds:
+
+- maximum queued bytes per subscriber;
+- maximum run output size;
+- maximum subscriber lag behind the event log;
+- maximum stream duration;
+- maximum concurrent runs per tenant and globally.
+
+When a subscriber falls behind, choose a policy:
+
+1. disconnect it and let it replay from the event log;
+2. coalesce adjacent text deltas;
+3. switch from token events to larger chunks;
+4. stop persisting every token and persist periodic checkpoints plus final output.
+
+Do not allow an unbounded in-memory array of tokens. The durable event log and final response store should absorb replay responsibility.
+
+## Reconnection Requires Replay Semantics
+
+On reconnect, `EventSource` sends `Last-Event-ID`. The server must decide what can be replayed.
+
+### Full event replay
+
+Persist every event for the run. This provides exact visual continuity but increases write volume.
+
+### Checkpoint replay
+
+Persist the accumulated text every N characters or milliseconds plus important events. A reconnect receives the latest snapshot, then live deltas. The protocol needs a `snapshot` event so the client replaces rather than appends.
+
+### Final-only recovery
+
+If the stream disconnects, show connection loss and poll the run status until the final response is available. This is simplest when mid-generation continuity is not essential.
+
+Choose one and test duplicate delivery. Networks are at-least-once environments: the client may receive the same event again around a reconnect. Sequence IDs make applying events idempotent.
+
+## Cancellation Has Two Meanings
+
+Closing `EventSource` cancels the subscription. It does not necessarily cancel the generation.
+
+Provide an explicit command:
+
+```txt
+POST /api/ai/runs/{runId}/cancel
 ```
-[Candidate Browser]
-     |
-     | POST /api/interview/feedback (streamId, tenantId, transcript)
-     v
-[Next.js Edge Route Handler]
-     |
-     |--- [Redis] Check idempotency key (streamId:tenantId)
-     |         |-- cached? → replay buffered chunks → done
-     |         |-- new?   → reserve key, continue
-     |
-     |--- [Redis] Acquire stream slot (global + per-tenant counter)
-     |         |-- slots full? → 503 + Retry-After
-     |
-     |--- [Billing Service] Check token budget for tenant
-     |         |-- budget exhausted? → 429
-     |
-     |--- [OpenAI API] chat.completions.create({ stream: true })
-     |
-     |--- ReadableStream pipeline
-     |         |-- each chunk → append to Redis buffer (stream session)
-     |         |-- each chunk → SSE event to browser
-     |         |-- on close  → recordTokenUsage(tenantId, count)
-     |                       → releaseStreamSlot(tenantId)
-     v
-[Candidate Browser] renders tokens as they arrive
+
+The handler authorizes the actor, transitions the run to `cancelled` if still active, and signals the worker. The worker then attempts to abort the provider request.
+
+Provider cancellation semantics differ. Output may continue briefly, and usage may still be incurred. Record actual provider usage when available, not zero merely because the user clicked Stop.
+
+Decide whether disconnect should cancel generation:
+
+- For a chat response shown only to the current browser, cancellation on explicit user action is reasonable.
+- For a report, export, or shared run, the work may continue after the subscriber leaves.
+- For mobile or unreliable networks, automatic disconnect cancellation can destroy useful work.
+
+## Usage Accounting Belongs to the Terminal Transition
+
+Do not add one token to a database counter for every delta. That is slow, expensive, and vulnerable to retries.
+
+Keep provisional usage in the run worker, then commit one idempotent ledger record when the provider reports final usage or the run terminates:
+
+```ts
+await db.transaction(async (tx) => {
+  const run = await lockRun(tx, runId);
+  if (isTerminal(run.state)) return;
+
+  await insertUsageLedger(tx, {
+    tenantId: run.tenantId,
+    idempotencyKey: `generation:${run.runId}`,
+    providerRequestId,
+    inputUnits: usage.input,
+    outputUnits: usage.output,
+  });
+
+  await markRunCompleted(tx, runId, finalResponse);
+  await appendDoneEvent(tx, runId, finishReason);
+});
 ```
 
-Key invariants:
-- One OpenAI call per `streamId`, regardless of reconnects
-- Slot is always released in `finally` block — stream abort, timeout, or success
-- Token usage is recorded from actual completion text, not estimated
+The terminal state, final output, usage row, and terminal event should commit consistently where the storage model allows it. If the provider reports usage asynchronously, represent `usage_pending` explicitly and reconcile later.
 
-## Learnings & Outcomes
+## Security and Abuse Controls
 
-After rolling this out over 3 weeks:
+- Authenticate the create, subscribe, status, and cancel endpoints.
+- Re-authorize run ownership on every endpoint; an opaque ID is not permission.
+- Use same-origin cookies with appropriate SameSite and CSRF controls, or short-lived scoped subscription tokens.
+- Never place bearer tokens in long-lived query strings.
+- Apply tenant request, concurrency, output-size, and spend budgets before starting a run.
+- Redact prompts and generated private text from routine logs.
+- Escape generated content in the UI; SSE is a transport, not an HTML sanitizer.
+- Validate citation URLs and tool output before sending them to the browser.
 
-| Metric | Before | After |
-|---|---|---|
-| Perceived response time (P50) | 7.2s | 0.8s (first token) |
-| Candidate drop-off before reading feedback | 23% | 6% |
-| Serverless timeout errors | ~4% of long completions | 0% |
-| Token billing accuracy | ±40% estimate | ±2% actual |
-| OpenAI 429 errors under batch load | 18% | <0.3% |
+## Common Failure Modes
 
-The drop-off reduction alone justified the engineering investment. The billing accuracy improvement was a bonus that also helped us price the platform more aggressively — we stopped over-provisioning token budgets to cover estimation error.
+### Reconnect starts a second model call
 
-One number that surprised us: **the Redis buffer for reconnects added only 3ms to median stream latency**. We expected more overhead. The per-tenant concurrency limiter added roughly 1.2ms per request — entirely acceptable.
+Generation is tied to the stream request. Create a durable idempotent run first; subscriptions only observe it.
 
-## Suggestions
+### Socket close is treated as completion
 
-**1. Always use edge runtime for streaming routes.** Node.js serverless functions on Vercel/AWS Lambda have limited streaming support and lower timeout ceilings. Edge is purpose-built for this pattern.
+The UI shows a partial answer as final. Require an application-level terminal event or status response.
 
-**2. Never rely on client-side token counting for billing.** Clients can lie, networks drop chunks, and token estimators diverge from actual model tokenization. Count on the server in the `onCompletion` callback.
+### A proxy buffers the stream
 
-**3. Wire up per-tenant concurrency limits before you think you need them.** One enterprise batch session will spike your OpenAI rate limit without warning. The Redis semaphore takes an hour to build and saves you from a midnight incident.
+The browser receives the whole answer at once. Disable transformation where possible and test every deployed intermediary with timed chunks.
 
-**4. Make stream IDs part of your API contract.** The client should generate a UUID, persist it in `sessionStorage`, and send it with every retry. This gives you idempotent streams without any server-side state management at the request level.
+### Slow clients consume unbounded memory
 
-**5. Test reconnect behavior explicitly.** Chrome DevTools → Network → throttle to "Offline" mid-stream, then restore. If your server starts a second completion, you have a bug and a billing leak.
+The producer outpaces the response queue. Bound buffers, coalesce deltas, and replay from durable state.
 
-**6. Log first-token latency separately from completion latency.** These are different UX signals. First-token latency drives perceived performance; completion latency drives cost. Conflating them hides which one you're actually optimizing.
+### Cancel closes the browser but not the provider call
 
-Streaming is table stakes for any AI product. Getting the infrastructure right — idempotency, concurrency, cost attribution — is where the real engineering lives.
+Cost continues invisibly. Separate subscription cancellation from run cancellation and record actual terminal usage.
+
+### Usage is recorded twice after a retry
+
+The finalizer runs more than once. Use a unique ledger idempotency key derived from the run.
+
+### Application errors collide with EventSource errors
+
+Client code cannot distinguish transport reconnection from a failed run. Use a dedicated terminal event name and a status endpoint.
+
+## Operational Checklist
+
+- [ ] Is run creation idempotent and separate from subscription?
+- [ ] Are run states and legal terminal transitions explicit?
+- [ ] Does every event have a sequence, protocol version, and validated payload?
+- [ ] Can a reconnect replay or recover without starting new generation?
+- [ ] Are duplicate events safe to apply?
+- [ ] Are proxy buffering, compression, HTTP versions, and idle timeouts tested?
+- [ ] Are stream buffers, duration, output size, and concurrent runs bounded?
+- [ ] Is explicit run cancellation distinct from closing the connection?
+- [ ] Are final output, terminal state, and usage recorded idempotently?
+- [ ] Can operators join browser, run, worker, provider, and ledger identifiers?
+
+## Takeaway
+
+SSE makes the transport simple: ordered UTF-8 events over an HTTP response. It does not solve generation identity, replay, cancellation, accounting, or failure recovery.
+
+The production design treats streaming as observation of a durable run. Once the run has an idempotency key, event sequence, terminal state, replay policy, bounded buffers, and one usage ledger entry, the UI can reconnect without duplicating expensive work or mistaking a broken connection for a completed answer.
+
+## Primary references
+
+- [MDN: Using server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
+- [HTML Living Standard: Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+- [Next.js: Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
+- [MDN: Streams API concepts](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Concepts)
+- [MDN: `TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream)
