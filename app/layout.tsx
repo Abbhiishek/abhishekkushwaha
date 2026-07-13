@@ -1,25 +1,24 @@
 import NavbarLayout from '@/components/NavbarLayout';
+import { SoundProvider } from '@/components/SoundProvider';
 import { Noise } from '@/components/ui/noise';
 import { ogImageUrl } from '@/lib/og-metadata';
 import { getSiteUrl } from '@/lib/site';
 import { cn } from '@/utils/cn';
 import type { Metadata } from 'next';
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from 'next-themes';
 import './globals.css';
 
-
 const description =
-  "AI product engineer building real-time intelligent systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and the multi-tenant SaaS plumbing behind them. Currently leading engineering at HyrecruitAI."
-const name = 'Abhishek Kushwaha'
-const tagline = 'AI product engineer · Real-time intelligent systems'
+  'AI product engineer building real-time intelligent systems — voice agents, LLM evaluation, guardrails, semantic caching, WebRTC, and the multi-tenant SaaS plumbing behind them. Currently leading engineering at HyrecruitAI.';
+const name = 'Abhishek Kushwaha';
+const tagline = 'AI product engineer · Real-time intelligent systems';
 const homeOgImage = ogImageUrl({
   title: 'home@abhishekkushwaha',
   eyebrow: 'AI product engineer',
   background: 'HOME',
-})
+});
 
-
-const siteUrl = getSiteUrl()
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -83,9 +82,9 @@ export const metadata: Metadata = {
     nocache: true,
     googleBot: {
       index: true,
-      follow: true
-    }
-  }
+      follow: true,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -95,14 +94,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(`relative overflow-hidden bg-white text-zinc-900 dark:bg-brand-dark dark:text-zinc-100 font-sans transition-colors duration-200`)}>
+      <body
+        className={cn(
+          `relative overflow-hidden bg-white text-zinc-900 dark:bg-brand-dark dark:text-zinc-100 font-sans transition-colors duration-200`
+        )}
+      >
         <ThemeProvider attribute="class">
-          <Noise />
-          <NavbarLayout>
-
-            {children}
-          </NavbarLayout>
-        </ThemeProvider >
+          <SoundProvider>
+            <Noise />
+            <NavbarLayout>{children}</NavbarLayout>
+          </SoundProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

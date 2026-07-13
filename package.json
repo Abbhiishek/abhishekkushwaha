@@ -20,6 +20,7 @@
     "@tailwindcss/typography": "^0.5.13",
     "@types/showdown": "^2.0.6",
     "clsx": "^2.1.1",
+    "cuelume": "^0.1.0",
     "framer-motion": "^11.2.6",
     "kbar": "^0.1.0-beta.45",
     "lucide-react": "^0.379.0",
