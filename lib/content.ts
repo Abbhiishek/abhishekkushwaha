@@ -1,29 +1,47 @@
-const markdownModules = import.meta.glob("../content/**/*.md", {
-    eager: true,
-    import: "default",
-    query: "?raw",
-}) as Record<string, string>
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
-const markdownContent = Object.fromEntries(
-    Object.entries(markdownModules).map(([path, content]) => [
-        path.replace(/^\.\.\/content\//, ""),
-        content,
-    ]),
-)
+const contentDirectory = path.join(process.cwd(), 'content');
+const blogDirectory = path.join(contentDirectory, 'blog');
 
-export function getMarkdownContent(contentPath: string): string | null {
-    return markdownContent[contentPath] ?? null
+function resolveContentPath(contentPath: string): string | null {
+  const resolvedPath = path.resolve(contentDirectory, contentPath);
+  const relativePath = path.relative(contentDirectory, resolvedPath);
+
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return resolvedPath;
 }
 
-export function getBlogMarkdownEntries(): Array<{ slug: string; content: string }> {
-    return Object.entries(markdownContent)
-        .filter(([contentPath]) => contentPath.startsWith("blog/") && contentPath.endsWith(".md"))
-        .map(([contentPath, content]) => ({
-            slug: contentPath.replace(/^blog\//, "").replace(/\.md$/, ""),
-            content,
-        }))
+export function getMarkdownContent(contentPath: string): string | null {
+  const resolvedPath = resolveContentPath(contentPath);
+  if (!resolvedPath) return null;
+
+  try {
+    return readFileSync(resolvedPath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+export function getBlogMarkdownEntries(): Array<{
+  slug: string;
+  content: string;
+}> {
+  try {
+    return readdirSync(blogDirectory, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => ({
+        slug: path.basename(entry.name, '.md'),
+        content: readFileSync(path.join(blogDirectory, entry.name), 'utf8'),
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export function getBlogMarkdownContent(slug: string): string | null {
-    return getMarkdownContent(`blog/${slug}.md`)
+  return getMarkdownContent(`blog/${slug}.md`);
 }
