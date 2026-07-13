@@ -1,139 +1,344 @@
 ---
-title: "Hybrid Search Without Hand-Waving"
-description: "A practical blueprint for building hybrid search with Azure AI Search: lexical retrieval, vector search, semantic ranking, filters, scoring profiles, and relevance evaluation."
-date: "2026-05-28"
+title: 'Hybrid Search on Azure AI Search: Retrieval, RRF, and Relevance Debugging'
+description: 'A practical Azure AI Search implementation guide covering index design, lexical and vector retrieval, filters, reciprocal rank fusion, semantic ranking, and evaluation.'
+date: '2026-05-28'
 tags: azure-ai-search, hybrid-search, vector-search, search-relevance, ai-engineering
 coverImage: /me.webp
 featured: true
 ---
 
-Hybrid search sounds simple until you have to debug why the right result is sitting at rank 17.
+Hybrid search is easy to demo and surprisingly hard to debug.
 
-The common pitch is: combine keyword search with vector search and get the best of both worlds. That is directionally true, but incomplete. Real product search is not just retrieval. It is query understanding, filters, scoring, reranking, freshness, permissions, latency, and a relevance loop that tells you when the system is getting worse.
+Add a vector field, send the same query to lexical and vector retrieval, and Azure AI Search will combine the results. The first page often looks intelligent. Then a user asks why an exact error code disappeared, why a restricted document entered the candidate set, or why a clearly relevant article is ranked below a vague semantic match.
 
-Azure AI Search is useful because it gives you the pieces in one place: classic lexical search, vector indexes, semantic ranker, filters, facets, scoring profiles, and integrations around embeddings. The engineering work is deciding how those pieces should cooperate.
+Those are not edge cases. They are the work of relevance engineering.
 
-## Start With What Each Search Mode Is Good At
+Azure AI Search provides a strong set of primitives: BM25 text search, vector search, metadata filters, reciprocal rank fusion, semantic ranking, captions, answers, facets, and scoring profiles. Quality depends on assigning each primitive a narrow job and retaining enough diagnostics to locate failure.
 
-Keyword search is still underrated.
+This article owns the Azure-specific mechanics. The Flash case study covers the talent-domain product architecture; here the documents and examples are generic knowledge-base records so the retrieval behavior stays visible.
 
-BM25 is good when users type exact names, acronyms, error codes, role titles, companies, skills, locations, file names, and domain language that should not be blurred into a nearby concept. If a recruiter searches for "React Native", they usually do not mean every frontend engineer. If an engineer searches for "Redis timeout", they probably care about those exact words.
+## Start With a Failure Map
 
-Vector search is good when the user expresses intent in natural language:
+When a result is wrong, identify the earliest stage where it became wrong.
 
-- "backend engineer who has worked on payments and event-driven systems"
-- "candidate with customer-facing AI product experience"
-- "docs about reducing latency in voice agents"
+```mermaid
+flowchart LR
+    A[User query] --> B[Query normalization]
+    B --> C[Security and product filters]
+    C --> D1[BM25 retrieval]
+    C --> D2[Vector retrieval]
+    D1 --> E[RRF merge]
+    D2 --> E
+    E --> F[Semantic reranking]
+    F --> G[Business rules and presentation]
+    G --> H[Logged judgment]
+```
 
-The query and the document may not share exact words, but the meaning overlaps.
+| Symptom                                 | Likely stage                  | First question                                       |
+| --------------------------------------- | ----------------------------- | ---------------------------------------------------- |
+| Exact identifier is missing             | Lexical retrieval or analyzer | Was the identifier tokenized as expected?            |
+| Conceptually related document is absent | Vector retrieval              | Was it embedded, filtered, and included in `k`?      |
+| Correct document exists but ranks low   | RRF or reranking              | Which retrieval lists contained it, at what ranks?   |
+| Forbidden document appears              | Filter construction           | Was authorization applied inside the search request? |
+| Results changed after content updates   | Indexing or embedding version | Are document and vector versions aligned?            |
+| Search looks good but users fail tasks  | Evaluation design             | Are the labels and metrics tied to real intent?      |
 
-Semantic ranking helps after retrieval. I think of it as a judgment layer over a candidate set, not a replacement for retrieval. If the first stage fails to bring useful documents into the candidate pool, a ranker cannot save the experience.
+Debugging from the final rank alone encourages random weight changes. Debugging from stage traces produces a testable hypothesis.
 
-## The Shape I Prefer
+## Design the Index Around Query Intent
 
-For most products, I would use a staged pipeline:
+One giant `content` field is quick to ingest and difficult to tune. Separate fields according to how they are searched.
 
-1. Normalize the query.
-2. Apply hard filters first.
-3. Run lexical and vector retrieval together.
-4. Merge candidates.
-5. Apply semantic ranking or a custom reranker.
-6. Add business scoring.
-7. Return results with explanations or highlights.
-8. Log enough to evaluate later.
+| Field              | Azure capabilities                | Purpose                                        |
+| ------------------ | --------------------------------- | ---------------------------------------------- |
+| `id`               | key, filterable                   | Stable document identity                       |
+| `tenantId`         | filterable                        | Mandatory isolation boundary                   |
+| `accessGroupIds`   | filterable collection             | Permission filtering                           |
+| `title`            | searchable, retrievable           | Strong lexical signal and semantic title input |
+| `content`          | searchable, retrievable           | Main lexical and semantic body                 |
+| `tags`             | searchable, filterable, facetable | Exact concepts and navigation                  |
+| `product`          | filterable, facetable             | Product or corpus partition                    |
+| `updatedAt`        | filterable, sortable              | Freshness and debugging                        |
+| `contentVector`    | vector field                      | Semantic retrieval                             |
+| `embeddingVersion` | filterable                        | Detect mixed vector generations                |
 
-The detail that matters: filters are not optional decoration. They are product constraints.
+Searchable, filterable, sortable, and facetable are separate index choices. Marking every field with every capability increases index cost and reduces clarity. Begin from concrete query and filtering requirements.
 
-If a user searches inside tenant A, results from tenant B must never enter the candidate pool. If a recruiter is only allowed to see active candidates, archived candidates should not appear and then get filtered in the UI. Permissions belong in retrieval, not presentation.
+The vector field's dimensions must match the embedding model output, and it must reference a configured vector-search profile. Changing embedding models is therefore a schema and reindexing decision, not merely an environment-variable update.
 
-## Index Design Is Product Design
+For long documents, choose chunks around answerable units rather than arbitrary character counts. Store a parent document ID and chunk position so results can be collapsed, explained, and opened in context.
 
-The index should reflect how people search.
+```ts
+type SearchChunk = {
+  id: string;
+  parentId: string;
+  tenantId: string;
+  title: string;
+  headingPath: string[];
+  content: string;
+  tags: string[];
+  updatedAt: string;
+  embeddingVersion: string;
+  contentVector: number[];
+};
+```
 
-For a talent platform, I would separate fields by intent:
+## Give Lexical and Vector Retrieval Different Jobs
 
-- `name`, `email`, `location`, `company` for exact or boosted keyword matches.
-- `skills`, `titles`, `industries`, `seniority` for structured filters and facets.
-- `summary`, `experience`, `projects`, `notes` for semantic matching.
-- `tenantId`, `visibility`, `status`, `updatedAt` for access and lifecycle control.
-- `contentVector` or multiple vectors for semantic retrieval.
+BM25 is strong when the literal terms matter:
 
-One large text blob is easy to ship and hard to improve. Field structure gives you control. It lets you boost title matches differently from body matches. It lets you debug why a document matched. It lets you add freshness without pretending every old document is equally useful.
+- product names, IDs, error codes, and acronyms;
+- quoted phrases;
+- domain vocabulary with precise spelling;
+- short navigational queries such as "billing retries".
 
-For embeddings, I prefer starting with one strong document vector, then splitting only when there is evidence. Multiple vectors can help when a document contains very different sections, but they also increase index complexity and evaluation burden.
+Vector retrieval is strong when meaning survives vocabulary changes:
 
-## Hybrid Retrieval Needs a Merge Strategy
+- "requests fail after the client disconnects" versus "abort upstream generation";
+- "keep one customer's documents away from another" versus "tenant isolation";
+- natural-language questions that do not repeat the answer's exact words.
 
-The most important question is not "keyword or vector?"
+Neither is a universal fallback for the other. Embeddings can blur exact constraints; lexical retrieval can miss paraphrases. Hybrid search sends both queries in one request and merges their ranked lists.
 
-It is "what happens when they disagree?"
+## Anatomy of a Production Hybrid Request
 
-Lexical search may rank an exact but shallow match high. Vector search may rank a semantically rich but vague match high. Hybrid search should let both candidates compete, but not blindly average everything.
+Assume the application has already generated `queryVector` using the same embedding model version as the index.
 
-Good merge logic depends on the product:
+```ts
+const requestBody = {
+  search: query,
+  filter: [
+    `tenantId eq '${escapeOData(tenantId)}'`,
+    `accessGroupIds/any(g: search.in(g, '${groupIds.join(',')}'))`,
+    `embeddingVersion eq '${embeddingVersion}'`,
+  ].join(' and '),
+  vectorFilterMode: 'preFilter',
+  vectorQueries: [
+    {
+      kind: 'vector',
+      vector: queryVector,
+      fields: 'contentVector',
+      k: 50,
+      weight: 1,
+    },
+  ],
+  queryType: 'semantic',
+  semanticConfiguration: 'semantic-default',
+  captions: 'extractive|highlight-false',
+  select: 'id,parentId,title,headingPath,content,updatedAt',
+  top: 10,
+};
 
-- Exact entity queries should heavily favor lexical matches.
-- Exploratory queries should give vectors more room.
-- Recent content can get a small boost if freshness matters.
-- Trusted or verified records can outrank weaker records.
-- Duplicate or near-duplicate documents should be collapsed.
+const response = await fetch(
+  `${endpoint}/indexes/${indexName}/docs/search?api-version=${apiVersion}`,
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': adminOrQueryKey,
+    },
+    body: JSON.stringify(requestBody),
+    signal: abortSignal,
+  }
+);
+```
 
-I like query classification here. You do not need a giant model for it. Even simple rules help:
+The code is incomplete without the surrounding controls:
 
-- Does the query contain a quoted phrase?
-- Does it look like a name, email, ID, company, or exact skill?
-- Is it a long natural-language sentence?
-- Is the user filtering by location, role, or status?
+- Build OData expressions with a tested encoder or query builder; do not concatenate untrusted values casually.
+- Prefer a query key or identity with the least required access for user-facing search.
+- Construct tenant and authorization filters on the server from authenticated context, not request body claims.
+- Bound request time and propagate cancellation.
+- Log a redacted request fingerprint and search configuration version.
 
-That classification can decide how much to trust lexical search, vectors, and reranking.
+When semantic ranking is enabled for a hybrid query, Azure's guidance recommends providing up to 50 vector candidates so the semantic ranker has a sufficiently broad input set. `k` is a quality, latency, and quota decision; evaluate it by query segment rather than copying one value into every workload.
 
-## Semantic Ranker Is Not a Magic Wand
+## Filters Change Vector Recall
 
-Semantic ranking can improve ordering, but it has to be measured. A ranker that makes demos look better can still hurt production if it over-favors polished text, misses exact constraints, or changes behavior across query types.
+Vector filters are not just security predicates. Their execution mode changes which neighbors are available.
 
-I would use it on a controlled candidate pool and log:
+### `preFilter`
 
-- query text
-- filters
-- top lexical candidates
-- top vector candidates
-- merged candidates
-- final ranked results
-- clicked result
-- skipped results
-- saved, shortlisted, opened, or rejected result
+Filtering is applied during vector traversal. This is the default for newer indexes and generally the best starting point when recall within the eligible corpus matters.
 
-Without those logs, relevance conversations become vibes.
+### `postFilter`
 
-## Evaluation Is the Real Feature
+Each shard finds vector neighbors first and filters them afterward. Selective filters can remove many candidates, producing fewer than `k` useful results or false negatives unless the candidate pool is widened.
 
-Search quality cannot be judged by one screenshot.
+The practical rule is:
 
-I would build a relevance set with real queries and expected judgments. Not just "result is correct" or "incorrect", but graded labels:
+> Security filters are mandatory; filter mode and candidate depth are relevance parameters.
 
-- perfect match
-- useful match
-- related but weak
-- wrong
-- forbidden or unsafe
+Build evaluation slices for highly selective tenants, access groups, languages, products, and date ranges. A global average can hide a severe recall failure in a small filtered corpus.
 
-Then track metrics like recall at 20, precision at 5, mean reciprocal rank, and query coverage by category. You do not need a research lab. You need a repeatable way to ask, "Did this ranking change make the product better?"
+## Reciprocal Rank Fusion Is a Merge, Not a Verdict
 
-For AI products, I would also add qualitative review. A recruiter can often explain why a candidate feels wrong faster than a metric can. Capture that reason. Turn it into a label. Feed it back into the relevance loop.
+Azure combines parallel ranked lists with reciprocal rank fusion (RRF). Conceptually, a document earns more fused score when it appears near the top of one or more lists. RRF works with ranks rather than assuming BM25 and vector similarity scores share a scale.
 
-## What I Would Ship First
+Imagine two retrieval lists:
 
-My first version would be boring on purpose:
+| Document | BM25 rank | Vector rank | Interpretation                                  |
+| -------- | --------: | ----------: | ----------------------------------------------- |
+| A        |         1 |          18 | Exact terminology, weaker semantic neighborhood |
+| B        |         9 |           2 | Strong paraphrase, few literal terms            |
+| C        |         3 |           4 | Supported by both retrievers                    |
 
-- Azure AI Search index with clean fields and tenant filters.
-- BM25 over structured text fields.
-- One embedding vector per searchable document.
-- Hybrid retrieval with conservative merge weights.
-- Semantic ranker for long natural-language queries.
-- Scoring profile for freshness and verified records.
-- Query/result logging from day one.
-- A small offline relevance set before tuning anything.
+Document C usually benefits from agreement. A and B remain competitive because each retriever has distinct evidence.
 
-That is enough to build a serious search product. The advanced work comes after the logs start telling you where search is failing.
+The vector query `weight` changes how strongly that list contributes to fusion. Do not tune it from one screenshot. Segment queries first:
 
-Hybrid search is not powerful because it uses vectors. It is powerful because it gives you multiple ways to retrieve evidence, rank it, and learn from user behavior. The engineering bar is not "does it return something smart-looking?" The bar is "can we explain, measure, and improve the results without breaking trust?"
+- identifiers and quoted phrases;
+- short keyword queries;
+- broad natural-language questions;
+- queries with restrictive filters;
+- multilingual or vocabulary-mismatch queries.
+
+A higher vector weight may improve the fourth category and damage the first. If query classes differ consistently, route them through explicit search profiles rather than forcing one compromise.
+
+## Semantic Ranking Is a Second Stage
+
+Semantic ranker operates on the candidate set returned by BM25 or RRF. It can improve ordering and produce extractive captions and answers, but it cannot recover a document that retrieval never supplied.
+
+Configure semantic fields deliberately:
+
+1. title field;
+2. prioritized content fields;
+3. keyword fields.
+
+Field order matters because the service has input limits. Put concise, high-value text before boilerplate. A navigation footer, repeated legal notice, or generated metadata should not crowd out the passage that answers the query.
+
+Keep both score families during debugging:
+
+- `@search.score` reflects BM25, vector, or RRF ranking depending on the query;
+- `@search.rerankerScore` reflects semantic relevance for semantic queries.
+
+These values are diagnostic signals, not probabilities. Avoid displaying a raw score as "93% relevant" unless the product has separately calibrated that interpretation.
+
+## Business Rules Need a Narrow Surface
+
+Freshness, verification, popularity, or document quality can matter, but business boosts should not quietly replace relevance.
+
+Use scoring profiles and application-side rules for defined cases, then evaluate them as separate changes. Examples:
+
+- decay outdated operational runbooks when a newer version exists;
+- boost canonical documentation over duplicated imports;
+- collapse chunks from the same parent to preserve result diversity;
+- demote content with known parsing or access-metadata errors.
+
+Every rule needs a reason code in the trace. Otherwise an operator sees only that the rank changed.
+
+## Log Enough to Reconstruct the Ranking
+
+Useful telemetry separates sensitive user data from reproducible configuration.
+
+```json
+{
+  "searchId": "search_01...",
+  "queryHash": "sha256:...",
+  "queryClass": "natural_language",
+  "indexVersion": "kb-v12",
+  "embeddingVersion": "embed-v3",
+  "searchProfile": "hybrid-semantic-v5",
+  "filterShape": ["tenant", "access_groups", "embedding_version"],
+  "lexicalCandidates": 50,
+  "vectorCandidates": 50,
+  "returned": 10,
+  "latencyMs": {
+    "embedding": 0,
+    "search": 0,
+    "total": 0
+  }
+}
+```
+
+The zero values indicate fields to populate, not claimed performance. Keep document-level traces in a restricted diagnostic store with an appropriate retention policy. Product analytics usually needs identifiers, positions, and versions; it does not need the full private query text forever.
+
+## Build an Evaluation Set Before Tuning
+
+A relevance set should include the query, applicable filters, candidate documents, and graded judgments.
+
+| Grade | Meaning                                       |
+| ----- | --------------------------------------------- |
+| 3     | Directly satisfies the intent and constraints |
+| 2     | Useful supporting result                      |
+| 1     | Related but unlikely to complete the task     |
+| 0     | Irrelevant, stale, duplicated, or forbidden   |
+
+Measure more than one property:
+
+- recall at the candidate depth, to test retrieval;
+- NDCG at the visible page size, to test ordering;
+- no-result and under-filled-result rate, especially under filters;
+- exact-match success for identifiers and names;
+- forbidden-result count, which should remain zero;
+- latency by query class and filter selectivity.
+
+Keep a frozen regression set and a rotating sample of recent queries. The frozen set catches known breakage; the rotating sample catches changing vocabulary and content.
+
+## A Debugging Ladder
+
+When a judged-relevant document is missing or low-ranked:
+
+1. Confirm the document is in the expected index and embedding version.
+2. Run the security and product filter alone; verify eligibility.
+3. Run lexical search alone and inspect analyzer behavior and rank.
+4. Run vector search alone and inspect `k`, filter mode, and rank.
+5. Run hybrid without semantic ranking; inspect the RRF result.
+6. Add semantic ranking; compare `@search.score` and `@search.rerankerScore`.
+7. Add scoring profiles or application rules one at a time.
+8. Record the failure as a regression query before changing configuration.
+
+This sequence turns "search feels wrong" into a specific stage failure.
+
+## Common Failure Modes
+
+### Embedding versions are mixed
+
+New query vectors are compared with old document vectors. Store and filter by embedding version during migration, then rebuild deliberately.
+
+### Authorization is applied after search
+
+Restricted documents consume top positions or leak metadata. Put authorization predicates in the Azure request and test them as security invariants.
+
+### Vector `k` is smaller than the reranker input needs
+
+Semantic ranking receives a narrow pool and appears ineffective. Evaluate a broader candidate depth within service and latency constraints.
+
+### Chunking destroys context
+
+The answer and its prerequisite land in separate fragments. Chunk by headings or semantic units, retain parent context, and evaluate chunk-level recall.
+
+### One weight is tuned for every query
+
+Natural-language queries improve while identifiers regress. Segment query intent and version search profiles.
+
+### Captions are mistaken for generated answers
+
+Extractive captions can be useful evidence but may omit context. Link to the source passage and preserve the document's access controls.
+
+## Production Checklist
+
+- [ ] Does the index schema reflect exact search, full text, filters, facets, and vector intent separately?
+- [ ] Are tenant and authorization filters built from trusted server context?
+- [ ] Are document and query embeddings on the same recorded version?
+- [ ] Is vector filter mode tested under selective filters?
+- [ ] Is candidate depth sufficient for RRF and semantic ranking?
+- [ ] Are semantic fields ordered by useful, concise content?
+- [ ] Are lexical-only, vector-only, hybrid, and semantic stages independently reproducible?
+- [ ] Are search profile, index, embedding, and analyzer versions logged?
+- [ ] Does the evaluation set include exact queries, natural language, filters, and forbidden results?
+- [ ] Can a relevance regression be rolled back without reindexing unrelated content?
+
+## Takeaway
+
+Hybrid search works when each stage remains visible. BM25 protects literal evidence, vectors recover paraphrases, filters define the eligible corpus, RRF merges independent rankings, and semantic ranker refines the candidate set. None of them removes the need for versioning, diagnostics, and judged queries.
+
+The durable advantage is not that Azure AI Search can run several ranking techniques at once. It is that a disciplined implementation can show where a result came from, why it moved, and whether the change improved the task users were trying to complete.
+
+## Primary references
+
+- [Azure AI Search: hybrid search overview](https://learn.microsoft.com/en-us/azure/search/hybrid-search-overview)
+- [Azure AI Search: relevance scoring in hybrid search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking)
+- [Azure AI Search: filters in vector queries](https://learn.microsoft.com/en-us/azure/search/vector-search-filters)
+- [Azure AI Search: semantic ranking](https://learn.microsoft.com/en-us/azure/search/semantic-search-overview)
+- [Azure AI Search: vector index size and configuration](https://learn.microsoft.com/en-us/azure/search/vector-search-index-size)
