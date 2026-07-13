@@ -1,182 +1,400 @@
 ---
-title: "Semantic Caching for AI Products: Cutting LLM Cost Without Breaking Quality"
-description: "How to design a semantic cache for LLM-heavy systems using exact cache keys, embeddings, pgvector, Redis, thresholds, and quality checks."
-date: "2026-04-08"
+title: 'Semantic Caching for LLMs: Reuse Without Crossed Contexts'
+description: 'How to reduce repeated LLM work with exact and semantic cache layers, strict eligibility partitions, calibrated thresholds, dependency-aware invalidation, and quality monitoring.'
+date: '2026-04-08'
 tags: llm, semantic-cache, pgvector, redis, cost-optimization
 coverImage: /me.webp
 featured: true
 ---
 
-LLM cost problems usually arrive quietly.
+A semantic cache can save latency and model cost by reusing a previous answer for a meaningfully similar request. It can also return another tenant's data, reuse an answer generated under an old policy, or treat two prompts as equivalent because their embeddings are close.
 
-At first, every request goes straight to the model. That is fine when traffic is small. Then usage grows, prompts get longer, the product adds retries, and suddenly the invoice is large enough to become a roadmap item.
+The vector lookup is the easy part.
 
-The instinct is to switch to a cheaper model. Sometimes that works. But for many AI products, the bigger opportunity is avoiding repeated work.
+The difficult part is defining when reuse is allowed. Two strings can be semantically similar and still require different answers because the user, permissions, locale, time, source corpus, model, prompt, or requested output format changed.
 
-Semantic caching is one of the highest-leverage patterns for LLM-heavy systems.
+The design rule is:
 
-## Why Exact Caching Is Not Enough
+> Partition by correctness first; compare semantic similarity only inside a partition where reuse is already permitted.
 
-Traditional caching works when two requests are exactly the same. LLM prompts rarely are.
+## Decide Cache Eligibility Before Choosing Infrastructure
 
-These are different strings:
+Not every LLM call should be cached.
 
-```txt
-Evaluate this answer for a backend engineer role.
-Evaluate the candidate response for a backend engineering role.
-Score this backend interview answer.
+| Workload                                | Exact cache         | Semantic cache | Why                                                     |
+| --------------------------------------- | ------------------- | -------------- | ------------------------------------------------------- |
+| Public FAQ over versioned docs          | Yes                 | Often          | Repeated intent and shared evidence                     |
+| Deterministic classification            | Yes                 | Sometimes      | Reuse is safe when labels and policy are stable         |
+| Generic explanation from static inputs  | Yes                 | Sometimes      | Output can be validated against the same dependencies   |
+| Private retrieval-augmented answer      | Per user/tenant     | Carefully      | Permissions and corpus version must match               |
+| Interview or human assessment           | Per immutable input | Usually avoid  | Small wording changes and consequential context matter  |
+| Current prices, inventory, or incidents | Briefly             | Usually avoid  | Freshness dominates similarity                          |
+| Tool calls and side effects             | Idempotency only    | No             | Similar intent is not authorization to repeat an action |
+| Open-ended creative generation          | Optional            | Rarely         | Repetition may reduce product value                     |
+
+Semantic caching is strongest for high-volume, low-variance, read-only tasks with explicit evidence and a clear staleness policy.
+
+## Use a Layered Lookup
+
+```mermaid
+flowchart TD
+    A[Request] --> B[Eligibility and policy checks]
+    B --> C[Build exact fingerprint]
+    C --> D{Exact hit?}
+    D -->|yes| E[Validate dependencies]
+    D -->|no| F[Embed semantic input]
+    F --> G[Search inside safe partition]
+    G --> H{Distance accepted?}
+    H -->|yes| E
+    H -->|no| I[Call model]
+    I --> J[Validate output]
+    J --> K[Store exact and semantic record]
+    E --> L[Return with cache provenance]
+    K --> L
 ```
 
-But in many product contexts, they may represent the same underlying request.
+The exact layer is cheaper and safer, so it always runs first. The semantic layer handles paraphrases only after policy constraints have reduced the search space.
 
-An exact cache key will miss all three. A semantic cache can recognize that they are similar enough to reuse a previous response if the product allows it.
+## Build a Correctness Partition
 
-That last phrase is important: if the product allows it. Semantic caching is not safe for every LLM call.
-
-## Where Semantic Caching Works
-
-Good candidates:
-
-- repeated evaluation prompts
-- FAQ-style assistant answers
-- classification tasks
-- rubric-based scoring
-- summarization of similar structured inputs
-- generated explanations for common cases
-
-Bad candidates:
-
-- personalized advice with sensitive user context
-- legal, medical, or financial outputs
-- anything where small input changes must change the answer
-- high-creativity generation
-- model calls that include fresh user-specific data
-
-The engineering judgment is deciding where similarity means reuse and where similarity is dangerous.
-
-## A Two-Layer Cache
-
-I prefer a two-layer design.
-
-Layer one is an exact cache:
-
-```txt
-normalized prompt -> hash -> Redis
-```
-
-Layer two is a semantic cache:
-
-```txt
-normalized prompt -> embedding -> pgvector similarity search
-```
-
-The exact cache is fast and cheap. The semantic cache is slower but captures near-duplicates.
-
-The flow:
-
-1. Normalize the prompt.
-2. Look for exact Redis hit.
-3. If it misses, generate an embedding.
-4. Search pgvector for similar cached prompts.
-5. Reuse only if similarity crosses the threshold.
-6. If no safe hit exists, call the model.
-7. Store the response asynchronously.
+The partition contains every attribute that can change the valid answer.
 
 ```ts
-type CacheResult<T> =
-  | { source: "exact"; value: T }
-  | { source: "semantic"; value: T; similarity: number }
-  | { source: "miss" };
+type SemanticCacheScope = {
+  tenantId: string;
+  userPermissionHash?: string;
+  taskType: string;
+  locale: string;
+  outputSchemaVersion: string;
+  promptVersion: string;
+  policyVersion: string;
+  modelFamily: string;
+  retrievalCorpusVersion?: string;
+  knowledgeCutoff?: string;
+};
 ```
 
-This shape forces callers to know where the response came from.
+Hash the serialized scope into `scopeFingerprint`. Search only records with the same fingerprint.
 
-## The Data Model
+Some fields are intentionally strict:
 
-A simple table is enough to start:
+- **Tenant and permissions:** prevent cross-tenant or over-privileged reuse.
+- **Task type:** classification output must never match a support answer.
+- **Prompt, policy, and schema:** changing instructions changes valid output.
+- **Model family:** a product may promise behavior tied to a model class or capability.
+- **Corpus version:** retrieval-grounded answers depend on indexed evidence.
+- **Locale:** translation and policy wording may differ.
+
+Do not embed these attributes and hope similarity handles them. They are equality constraints.
+
+## Separate Semantic Input From the Full Prompt
+
+The full provider prompt contains system instructions, formatting text, examples, timestamps, and retrieved passages. Embedding that entire string can make superficial template text dominate similarity.
+
+Define a task-specific semantic projection:
+
+```ts
+type SupportQuestionProjection = {
+  intentText: string;
+  productArea: string;
+  errorCodes: string[];
+  requestedVersion?: string;
+};
+
+function semanticText(input: SupportQuestionProjection): string {
+  return [
+    input.intentText.trim(),
+    `product:${input.productArea}`,
+    ...input.errorCodes.map((code) => `error:${code}`),
+    input.requestedVersion ? `version:${input.requestedVersion}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+```
+
+Preserve exact entities such as error codes and versions as structured fields or equality checks. An embedding may consider two neighboring version numbers similar even when their answers differ.
+
+Canonicalization should remove irrelevant variation, not meaning. Lowercasing an identifier, dropping negation, sorting an ordered list, or removing a date can create false equivalence.
+
+## The Cache Record Needs Provenance
+
+```ts
+type SemanticCacheRecord = {
+  cacheId: string;
+  scopeFingerprint: string;
+  exactInputHash: string;
+  semanticText: string;
+  embeddingModel: string;
+  embeddingVersion: string;
+  response: unknown;
+  evidenceRefs: string[];
+  dependencyFingerprint: string;
+  qualityState: 'validated' | 'provisional' | 'quarantined';
+  createdAt: string;
+  expiresAt: string;
+  hitCount: number;
+};
+```
+
+Store the response together with the versions and evidence that made it valid. A cache hit should return provenance internally:
+
+```json
+{
+  "source": "semantic_cache",
+  "cacheId": "cache_01...",
+  "distance": 0.08,
+  "promptVersion": "support-v12",
+  "corpusVersion": "docs-2026-07-10",
+  "ageSeconds": 412
+}
+```
+
+The numbers are an example shape, not a recommended threshold or service target.
+
+## Exact Keys Are Full Dependency Fingerprints
+
+An exact key should represent all correctness inputs, not only user text.
+
+```ts
+const exactKeyPayload = {
+  scope,
+  structuredInput,
+  retrievedEvidenceHashes,
+  generationParameters: {
+    responseFormat,
+    temperature,
+    toolPolicyVersion,
+  },
+};
+
+const exactKey = sha256(stableJson(exactKeyPayload));
+```
+
+Use stable serialization. Object key order, whitespace, and non-semantic timestamps should not create misses; omitted constraints should not create hits.
+
+Redis is a good fit for the exact response layer because TTL, atomic operations, and low-latency key access are natural cache primitives. The semantic index can also live in Redis, or in PostgreSQL with pgvector when operational simplicity and relational filtering matter more than keeping every hit in memory.
+
+## A pgvector Lookup With Hard Partitions
 
 ```sql
-CREATE TABLE llm_response_cache (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  prompt_hash TEXT NOT NULL,
-  prompt_text TEXT NOT NULL,
+CREATE TABLE semantic_cache_entries (
+  cache_id uuid PRIMARY KEY,
+  scope_fingerprint text NOT NULL,
+  exact_input_hash text NOT NULL,
+  semantic_input text NOT NULL,
   embedding vector(1536) NOT NULL,
-  response JSONB NOT NULL,
-  model TEXT NOT NULL,
-  task_type TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  hit_count INTEGER DEFAULT 0
+  dependency_fingerprint text NOT NULL,
+  response_key text NOT NULL,
+  quality_state text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX llm_response_cache_embedding_idx
-ON llm_response_cache
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
+CREATE INDEX semantic_cache_scope_idx
+  ON semantic_cache_entries (scope_fingerprint, expires_at);
+
+CREATE INDEX semantic_cache_embedding_hnsw
+  ON semantic_cache_entries
+  USING hnsw (embedding vector_cosine_ops);
 ```
 
-I would include `task_type` from the beginning. Evaluation prompts should not match support prompts. Candidate feedback should not match internal scoring. A semantic cache needs boundaries.
+Query inside the exact scope:
 
-## Thresholds Are Product Decisions
+```sql
+SELECT
+  cache_id,
+  response_key,
+  dependency_fingerprint,
+  1 - (embedding <=> $1::vector) AS cosine_similarity
+FROM semantic_cache_entries
+WHERE scope_fingerprint = $2
+  AND quality_state = 'validated'
+  AND expires_at > now()
+ORDER BY embedding <=> $1::vector
+LIMIT 5;
+```
 
-A similarity threshold is not a magic constant. It should be calibrated.
+Approximate indexes such as HNSW trade perfect recall for speed and memory. Filter selectivity, index parameters, and corpus size affect whether enough eligible neighbors are found. Evaluate the complete filtered query, not an unfiltered nearest-neighbor benchmark.
 
-For one product, 0.90 may be safe. For another, even 0.97 may be risky. The threshold depends on:
+The application still decides whether any candidate is safe to reuse.
 
-- model embedding quality
-- prompt length
-- task type
-- output sensitivity
-- acceptable error rate
-- whether humans review the result
+## Similarity Thresholds Must Be Calibrated Per Task
 
-I like starting conservative, logging would-have-hit cases, and reviewing them offline before enabling reuse.
+There is no universal cosine threshold for semantic equivalence. The value depends on the embedding model, task projection, language, corpus, and cost of a false hit.
 
-Useful logs:
+Create labeled pairs:
 
-- prompt hash
-- candidate match hash
-- similarity score
-- task type
-- model
-- accepted or rejected
-- downstream quality signal if available
+```txt
+(request A, request B, safe_to_reuse)
+```
 
-The cache should earn trust before it saves money.
+Include hard negatives:
 
-## Quality Checks
+- "How do I enable billing?" vs "How do I disable billing?"
+- "Reset my password" vs "Reset another user's password"
+- "PostgreSQL 16 migration" vs "PostgreSQL 18 migration"
+- identical questions under different permission sets;
+- the same intent before and after a policy change.
 
-The dangerous failure mode is a plausible cached response for a meaningfully different input.
+For each candidate threshold, measure:
 
-Guardrails help:
+- false-hit rate: unsafe reuse accepted;
+- miss rate: safe reuse rejected;
+- coverage: requests served from semantic cache;
+- quality by language and task slice;
+- cost and latency saved after validation overhead.
 
-- require same task type
-- require same model family or compatible model
-- require same output schema version
-- exclude user-specific fields from reusable prompts
-- store cache entries per tenant if data can leak
-- add TTLs for fast-changing domains
-- sample semantic hits for review
+Most products should optimize against false hits first. A cache miss costs another model call; a false hit can return a confidently wrong or unauthorized answer.
 
-For high-stakes tasks, I would also ask a small verifier model: "Is cached response A valid for new prompt B?" That adds cost, but it can still be cheaper than regenerating with a frontier model.
+Consider two thresholds:
 
-## Cost Is Not the Only Win
+- below the strict distance, reuse automatically;
+- inside an uncertainty band, run a cheap deterministic or model-based equivalence check;
+- outside the band, miss.
 
-Semantic caching reduces cost, but it also improves latency.
+The second check must be included in the economics. An expensive verifier can erase the value of caching.
 
-An LLM call might take 800ms to several seconds. A Redis hit is near-instant. A pgvector lookup is usually much faster than a generation call. For interactive products, that latency reduction can matter as much as the invoice.
+## Invalidation Is Dependency Management
 
-There is also a reliability benefit. If the model provider has a transient issue, a cache hit can keep common flows alive.
+TTL handles age. It does not know that a policy, document, feature flag, or prompt changed five seconds ago.
 
-## The Engineering Lesson
+Build a dependency fingerprint from versioned inputs:
 
-Semantic caching is not just "put embeddings in Postgres."
+```ts
+const dependencyFingerprint = sha256(
+  stableJson({
+    promptVersion,
+    policyVersion,
+    outputSchemaVersion,
+    embeddingVersion,
+    corpusVersion,
+    toolPolicyVersion,
+  })
+);
+```
 
-It is a product safety problem:
+On lookup, reject records whose fingerprint differs from the current request. For targeted invalidation, also attach tags:
 
-- What can be reused?
-- How similar is similar enough?
-- Where can data leak?
-- How do we know the cache is helping?
-- When should we bypass it?
+```txt
+tenant:acme
+corpus:docs-v42
+policy:support-v9
+product:billing
+```
 
-The strongest AI products are often built from unglamorous systems like this. They make the model cheaper, faster, and more reliable without making the user think about any of it.
+When a dependency changes, new requests naturally enter a new partition. Old entries can expire asynchronously rather than requiring a dangerous global delete.
+
+Use shorter TTLs for volatile evidence and longer TTLs for static, validated content. The semantic cache is non-authoritative and rebuildable; the source documents and policies remain the truth.
+
+## Prevent Cache Stampedes
+
+When a popular entry expires, many requests can miss simultaneously and call the model.
+
+Use single-flight coordination per exact fingerprint:
+
+```mermaid
+sequenceDiagram
+    participant R1 as Request 1
+    participant R2 as Request 2
+    participant C as Cache lock
+    participant M as Model
+    R1->>C: Acquire generation lease
+    C-->>R1: Granted
+    R2->>C: Acquire same lease
+    C-->>R2: Wait or serve stale-if-safe
+    R1->>M: Generate once
+    M-->>R1: Response
+    R1->>C: Store and release
+    C-->>R2: Read filled cache
+```
+
+The lease needs a timeout and an owner token so one request cannot release another request's lock. If stale-while-revalidate is allowed, apply it only when the dependency fingerprint still matches and the product has explicitly accepted the age.
+
+## Multi-Tenant Safety Is Non-Negotiable
+
+Cache entries can contain prompts, evidence, and generated text. Apply the same data classification and deletion rules as the source workload.
+
+- include tenant and permission state in the hard partition;
+- encrypt transport and storage according to the application's policy;
+- restrict cache inspection tools;
+- redact logs and metrics;
+- cascade tenant deletion to exact and semantic entries;
+- prevent shared public-cache mode unless content is explicitly public and identical across users;
+- never use cached authorization or tool approval as permission to perform a side effect.
+
+An embedding can itself reveal information through membership or similarity attacks. Treat vectors as sensitive derived data, not anonymous metadata.
+
+## Observe Quality, Not Only Hit Rate
+
+Track:
+
+| Metric                                        | Why it matters                         |
+| --------------------------------------------- | -------------------------------------- |
+| Exact and semantic hit rates                  | Shows which layer provides value       |
+| Accepted distance distribution                | Detects threshold or corpus drift      |
+| False-hit audit rate                          | Measures the most dangerous error      |
+| User correction or regeneration after hit     | Provides weak negative evidence        |
+| Hit rate by task, tenant, locale, and version | Exposes unsafe or ineffective slices   |
+| Entry age and invalidation reason             | Explains stale behavior                |
+| Model calls avoided                           | Measures gross savings                 |
+| Cache, embedding, and verifier cost           | Measures net savings                   |
+| Hit latency and miss latency                  | Confirms the cache improves experience |
+
+Sample cache hits for offline review. Compare cached output with a fresh generation and, more importantly, with task-specific quality criteria. A high hit rate can be a warning if it comes from an over-permissive threshold.
+
+## Common Failure Modes
+
+### Similar intent, different authority
+
+Two users ask the same question but can access different documents. Include permission or evidence scope in the hard partition.
+
+### Prompt changes without cache rotation
+
+Old answers survive a safety or formatting update. Version the prompt, policy, and schema in both exact keys and semantic scope.
+
+### Negation disappears during normalization
+
+"Enable" and "do not enable" collide. Keep semantic normalization conservative and include adversarial pairs in threshold evaluation.
+
+### A global threshold is copied across tasks
+
+FAQ reuse works while classification fails. Calibrate by task, language, and embedding version.
+
+### The vector index returns a neighbor from a stale corpus
+
+The response cites removed evidence. Filter on corpus/dependency version and validate evidence before returning.
+
+### Concurrent misses multiply provider cost
+
+Every instance generates the same answer. Add distributed single-flight and idempotent cache writes.
+
+### Cache metrics celebrate unsafe hits
+
+Cost falls while corrections rise. Gate rollout on false-hit audits and user outcome metrics, not hit rate alone.
+
+## Operational Checklist
+
+- [ ] Is the workload read-only, repeatable, and appropriate for semantic reuse?
+- [ ] Are tenant, permission, task, locale, policy, model, schema, and corpus versions hard partitions?
+- [ ] Is exact caching attempted before vector search?
+- [ ] Is semantic input a deliberate task projection rather than the entire prompt?
+- [ ] Are thresholds calibrated with safe pairs and difficult false friends?
+- [ ] Are approximate-index and filter recall tested together?
+- [ ] Does every entry carry evidence and dependency provenance?
+- [ ] Can policy or corpus changes invalidate reuse immediately without a global delete?
+- [ ] Are stampedes controlled with an owner-safe lease or single-flight mechanism?
+- [ ] Are false hits, corrections, net savings, and deletion obligations monitored?
+
+## Takeaway
+
+Semantic caching is not "find a nearby prompt and return its answer." It is a controlled reuse system.
+
+The safe design starts with eligibility, constructs a strict correctness partition, tries an exact fingerprint, searches vectors only inside that partition, validates distance against task-specific evidence, and rejects entries whose dependencies changed. Redis or pgvector can make lookup fast; policy and provenance make the result trustworthy.
+
+## Primary references
+
+- [Redis: semantic cache use case](https://redis.io/docs/latest/develop/use-cases/semantic-cache/)
+- [RedisVL: LLM cache API](https://redis.io/docs/latest/develop/ai/redisvl/api/cache/)
+- [pgvector documentation](https://github.com/pgvector/pgvector)
+- [PostgreSQL: indexes](https://www.postgresql.org/docs/current/indexes.html)
