@@ -1,272 +1,333 @@
 ---
-title: "The ALTER TABLE That Killed My Deploy"
-description: "How a single schema migration took down production for 4 minutes, and the expand-contract pattern that fixed it."
-date: "2026-04-17"
+title: 'Zero-Downtime PostgreSQL Migrations: Locks, Backfills, and Expand-Contract'
+description: 'A practical playbook for changing large PostgreSQL schemas without turning a routine deploy into a lock queue, table rewrite, or unsafe rollback.'
+date: '2026-04-17'
 tags: postgres, database, migrations, backend
 coverImage: /thumbnail.jpg
 featured: false
 ---
 
-The migration looked harmless. Add a column, give it a default, mark it NOT NULL. Twelve lines of SQL. I'd written it in two minutes and run it against staging without a second thought.
+A schema migration can be valid SQL and still be an unsafe production change.
 
-Production was a different story.
+The risk is rarely the syntax. It is the interaction between locks, long-running transactions, table size, application versions, replicas, and the migration runner's transaction boundary. A statement that finishes instantly on an empty staging database may wait behind a five-minute query in production. While it waits, later queries can queue behind the requested lock and turn a small deployment step into an application-wide traffic jam.
 
-The deploy kicked off. The migration runner started. Forty seconds in, my monitoring dashboard lit up: p99 latency spiked from 80ms to 31 seconds. The health check endpoint started failing. The load balancer started cycling the app. By the time I killed the migration job manually, 4 minutes had passed and the incident channel was full.
+The useful question is therefore not, "Does this migration work?" It is:
 
-The table had 2.1 million rows. I'd forgotten that `ALTER TABLE ... ADD COLUMN ... NOT NULL DEFAULT` in Postgres rewrites the entire table. That rewrite holds an `ACCESS EXCLUSIVE` lock the whole time, blocking every read and every write behind it. With 2.1M rows and a few text columns, the rewrite took long enough to cascade through the connection pool, saturate the queue, and trip the health check.
+> Can old and new application versions keep serving traffic while this change is applied, backfilled, verified, and, if necessary, abandoned?
 
-That was my introduction to zero-downtime migrations.
+That question leads to a repeatable method: inspect the lock and rewrite behavior, split incompatible changes into expand-and-contract phases, bound every risky operation, and make progress observable.
 
-## What Postgres Actually Does with ALTER TABLE
+## The Three Costs Hidden Inside DDL
 
-Not all schema changes are equal. Some are instant. Some rewrite the table. Some acquire lock levels that block reads. The documentation is correct about this, but correct documentation you haven't read is not useful at 2am.
+Treat every data definition statement as three separate operations.
 
-An `ACCESS EXCLUSIVE` lock blocks everything: reads, writes, other DDL. Postgres acquires it for table rewrites, for `ADD COLUMN NOT NULL DEFAULT` on Postgres 10 and below, and for `SET NOT NULL` on existing data that has not been pre-validated.
+| Cost             | What can go wrong                                                              | What to inspect                                               |
+| ---------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Lock acquisition | The statement waits behind an old transaction while new work queues behind it  | Required lock mode, open transactions, `lock_timeout`         |
+| Physical work    | PostgreSQL scans or rewrites a large table, builds an index, or validates rows | Table size, default volatility, constraint and index strategy |
+| Compatibility    | One application version expects a schema another version has already removed   | Deployment order, dual reads/writes, rollback path            |
 
-There are two separate problems here and they compound:
+Optimizing only the physical work is not enough. PostgreSQL can perform a metadata-only change quickly and still need a strong table lock to do it. Conversely, a long-running operation such as `CREATE INDEX CONCURRENTLY` is designed to allow normal writes, but it has its own failure and cleanup modes.
 
-1. **Rewrite cost.** If Postgres has to touch every row, the lock is held for as long as that takes. On large tables this is minutes.
-2. **Lock queue buildup.** Even a brief DDL operation has to wait for all running transactions to finish first. While it waits, every new query queues behind it. A DDL statement holding `ACCESS EXCLUSIVE` is a traffic jam in a one-lane tunnel. The jam does not clear when the DDL finishes; it clears when everything behind it drains.
+### Lock queues are the first failure mode
 
-The second problem is more insidious because it can happen even on fast migrations. An index creation that takes 50ms can cause 30 seconds of visible slowness if it has to wait on a 5-minute analytics query and 400 requests queue behind it.
+Many forms of `ALTER TABLE` take an `ACCESS EXCLUSIVE` lock unless the PostgreSQL documentation explicitly says otherwise. That lock conflicts with every table-level lock mode, including the `ACCESS SHARE` lock acquired by a normal `SELECT`.
 
-```sql
--- This is what killed production.
--- Postgres 10 and below rewrites the table for NOT NULL + DEFAULT.
--- Postgres 11+ handles constant defaults without a rewrite,
--- but computed defaults, sequences, or function calls still rewrite in all versions.
-ALTER TABLE candidates
-  ADD COLUMN resume_score FLOAT NOT NULL DEFAULT 0.0;
+The dangerous sequence is easy to miss:
+
+```mermaid
+sequenceDiagram
+    participant Q1 as Long query
+    participant DDL as Migration
+    participant Q2 as New requests
+    Q1->>Q1: Holds ACCESS SHARE
+    DDL->>Q1: Waits for ACCESS EXCLUSIVE
+    Q2->>DDL: Queues behind waiting DDL
+    Note over Q1,Q2: Fast DDL can still create a long queue
 ```
 
+The migration does not need to hold the lock to cause visible damage. Merely waiting for an incompatible lock can change which later statements are allowed to proceed.
+
+Before a deploy, inspect old transactions rather than only active queries:
+
 ```sql
--- Run this while a migration hangs. It shows lock chains.
 SELECT
-  blocking.pid           AS blocking_pid,
-  left(blocking.query, 80) AS blocking_query,
-  blocked.pid            AS blocked_pid,
-  left(blocked.query, 80)  AS blocked_query,
-  now() - blocked.query_start AS blocked_duration
-FROM pg_stat_activity AS blocked
-JOIN pg_stat_activity AS blocking
-  ON blocking.pid = ANY(pg_blocking_pids(blocked.pid))
-WHERE blocked.wait_event_type = 'Lock'
-ORDER BY blocked_duration DESC;
+  pid,
+  usename,
+  application_name,
+  state,
+  now() - xact_start AS transaction_age,
+  now() - query_start AS query_age,
+  wait_event_type,
+  wait_event,
+  left(query, 160) AS query
+FROM pg_stat_activity
+WHERE datname = current_database()
+  AND xact_start IS NOT NULL
+ORDER BY xact_start;
 ```
 
-That query is the first thing I open when a migration is slow. The `blocking_query` column tells you what is holding the door shut. Usually it is a long-running transaction that started before the migration and has not committed.
+An `idle in transaction` session can be more relevant than a busy query because its transaction may continue holding locks after the application has stopped doing useful work.
 
-## The Expand-Contract Pattern
+## Defaults: Fast Path Does Not Mean No Risk
 
-The fix is to decompose one migration into multiple phases, each requiring only a safe lock level. The pattern is called expand-contract, sometimes parallel-change. The idea is simple: never remove or constrain something until all code has stopped depending on the old shape.
-
-**Phase 1: Expand**
-
-Add the column nullable, no default, no NOT NULL. This is a metadata-only operation in modern Postgres and completes in milliseconds regardless of table size.
+Current PostgreSQL releases can add a column with a constant default without rewriting every row. The default is recorded in the catalog and materialized when old rows are read. That optimization makes this kind of change dramatically cheaper than it was in older releases:
 
 ```sql
--- Phase 1: metadata-only, no rewrite, lock held for ~5ms
-ALTER TABLE candidates ADD COLUMN resume_score FLOAT;
+ALTER TABLE candidates
+  ADD COLUMN review_state text NOT NULL DEFAULT 'pending';
 ```
 
-Deploy this. The column exists, it is nullable, and existing code that does not touch it continues unchanged.
+There are still two reasons not to treat it as universally free:
 
-**Phase 2: Backfill**
+1. `ALTER TABLE` must acquire its required lock, even if the catalog update is brief.
+2. A volatile default, such as `clock_timestamp()` or another value evaluated per row, can require PostgreSQL to visit existing rows.
 
-Populate existing rows in batches. Never do a single UPDATE across all rows. One giant UPDATE is the same problem: a massive transaction, a huge write-ahead log entry, and a write lock held across the whole table for the duration.
+Check the exact behavior for the PostgreSQL version you operate. When the change is part of a larger rollout or the default is expensive, an explicit expand-and-contract sequence is easier to reason about.
 
-```typescript
-import { db } from "@/lib/db";
+## The Expand-and-Contract Protocol
 
-const BATCH_SIZE = 500;
-const PAUSE_MS = 50;
+Expand-and-contract turns one breaking migration into a series of compatible states.
 
-async function backfillResumeScores(): Promise<void> {
-  let lastId = 0;
-  let total = 0;
+```mermaid
+flowchart LR
+    A[Old schema and old app] --> B[Expand schema]
+    B --> C[Deploy compatible app]
+    C --> D[Backfill in batches]
+    D --> E[Validate invariant]
+    E --> F[Switch reads]
+    F --> G[Contract old schema]
+```
 
-  while (true) {
-    const rows = await db
-      .selectFrom("candidates")
-      .select(["id", "resume_text"])
-      .where("id", ">", lastId)
-      .where("resume_score", "is", null)
-      .orderBy("id", "asc")
-      .limit(BATCH_SIZE)
-      .execute();
+The core rule is simple: **expand before code depends on the new shape; contract only after no deployed code depends on the old shape.**
 
-    if (rows.length === 0) break;
+Suppose `candidates.status` must become `candidates.review_state`, with a stricter non-null invariant.
 
-    for (const row of rows) {
-      const score = computeScore(row.resume_text);
-      await db
-        .updateTable("candidates")
-        .set({ resume_score: score })
-        .where("id", "=", row.id)
-        .execute();
-    }
+### Phase 1: Expand
 
-    total += rows.length;
-    lastId = rows[rows.length - 1].id;
+Add the new column without removing or renaming the old one:
 
-    process.stdout.write(`\rBackfilled ${total} rows, cursor at id ${lastId}`);
-    await new Promise((r) => setTimeout(r, PAUSE_MS));
-  }
+```sql
+SET lock_timeout = '2s';
+SET statement_timeout = '10s';
 
-  console.log(`\nDone. Total: ${total}`);
+ALTER TABLE candidates
+  ADD COLUMN review_state text;
+```
+
+Short timeouts make the migration fail predictably when the database is busy. A failed deployment step is usually safer than an unbounded lock wait.
+
+### Phase 2: Deploy compatible code
+
+The application should tolerate every state that can exist during the rollout. A common transition is:
+
+- write both `status` and `review_state`;
+- read `review_state` when present and fall back to `status`;
+- emit a metric when the fallback is used;
+- keep the mapping logic in one boundary, not scattered across handlers.
+
+Pseudocode makes the compatibility contract explicit:
+
+```ts
+type CandidateRow = {
+  status: string;
+  review_state: string | null;
+};
+
+function readReviewState(row: CandidateRow): string {
+  if (row.review_state !== null) return row.review_state;
+
+  migrationFallbackCounter.add(1);
+  return mapLegacyStatus(row.status);
 }
 ```
 
-The pause between batches matters. 50ms gives Postgres time to flush WAL, lets replication lag recover, and prevents the backfill from saturating I/O during peak traffic. For tables larger than 10M rows, drop the batch size to 200 and increase the pause to 100ms. Run this script as a standalone job outside the normal deploy, during off-peak hours.
+Dual writes are temporary complexity. They should have an owner, a removal condition, and observability; otherwise the transition becomes the permanent data model.
 
-**Phase 3: Constrain without full-table validation**
+### Phase 3: Backfill in bounded batches
 
-Once the backfill completes, add the NOT NULL constraint using the `NOT VALID` form. This skips scanning existing rows (trusting your backfill), only enforcing the constraint on new inserts and updates.
+A single `UPDATE` of every row creates one large transaction, generates a burst of write-ahead log, retains dead tuples until completion, and makes cancellation expensive. Prefer batches selected by an indexed key.
 
 ```sql
--- Phase 3a: safe lock level, skips existing row scan
+WITH batch AS (
+  SELECT id
+  FROM candidates
+  WHERE review_state IS NULL
+  ORDER BY id
+  LIMIT 1000
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE candidates AS c
+SET review_state = map_candidate_status(c.status)
+FROM batch
+WHERE c.id = batch.id
+RETURNING c.id;
+```
+
+Run each batch in its own transaction. The worker should record rows changed, duration, retries, and remaining null count. Tune the batch size against replica lag, database latency, and normal traffic instead of choosing one number permanently.
+
+`SKIP LOCKED` is useful when multiple workers may backfill concurrently, but it is not a substitute for a final completeness check: skipped rows must eventually be revisited.
+
+### Phase 4: Prove the invariant
+
+Setting `NOT NULL` can require a table scan. PostgreSQL can avoid that scan when a valid constraint already proves that no row is null. Build the proof in two steps:
+
+```sql
 ALTER TABLE candidates
-  ADD CONSTRAINT candidates_resume_score_not_null
-  CHECK (resume_score IS NOT NULL) NOT VALID;
+  ADD CONSTRAINT candidates_review_state_present
+  CHECK (review_state IS NOT NULL) NOT VALID;
 
--- Phase 3b: validates existing rows
--- acquires SHARE UPDATE EXCLUSIVE, which allows concurrent reads AND writes
 ALTER TABLE candidates
-  VALIDATE CONSTRAINT candidates_resume_score_not_null;
+  VALIDATE CONSTRAINT candidates_review_state_present;
 ```
 
-`VALIDATE CONSTRAINT` acquires `SHARE UPDATE EXCLUSIVE`, not `ACCESS EXCLUSIVE`. This lock level allows concurrent reads and writes. It will wait for long-running transactions but will not block new queries from starting. That is the crucial difference: new requests keep flowing while validation scans the table.
+`NOT VALID` avoids checking historical rows while the constraint is added, but new and changed rows must satisfy it. `VALIDATE CONSTRAINT` checks existing rows with a weaker lock than the initial schema change, allowing normal reads and writes to continue.
 
-After validation succeeds, promote the column to a proper NOT NULL constraint:
+After validation, make the column invariant explicit:
 
 ```sql
--- Phase 3c: both of these are metadata-only because Postgres knows the column is clean
-ALTER TABLE candidates DROP CONSTRAINT candidates_resume_score_not_null;
-ALTER TABLE candidates ALTER COLUMN resume_score SET NOT NULL;
+SET lock_timeout = '2s';
+
+ALTER TABLE candidates
+  ALTER COLUMN review_state SET NOT NULL;
+
+ALTER TABLE candidates
+  DROP CONSTRAINT candidates_review_state_present;
 ```
 
-The final `SET NOT NULL` on a column that Postgres has already verified is non-null completes in microseconds. It is a catalog update, not a table scan.
+The temporary check constraint has done its job: it converted a potentially expensive final verification into an already-proven fact.
 
-**Phase 4: Contract**
+### Phase 5: Switch reads, then contract
 
-If you were replacing an old column, you drop it here. Once the application no longer references it and the backfill is complete, the old column is dead weight.
+Remove the fallback only after metrics show it is unused and every running application version understands the new column. Dropping `status` belongs in a later deployment:
 
 ```sql
-ALTER TABLE candidates DROP COLUMN old_score_field;
+SET lock_timeout = '2s';
+
+ALTER TABLE candidates
+  DROP COLUMN status;
 ```
 
-## Architecture / Flow Diagram
+The delay between expansion and contraction is a safety feature. It preserves rollback: the new application can be rolled back while the old schema still exists.
 
-```
-Deploy pipeline
-      |
-      v
-[Migration runner] ----Phase 1 DDL----> [Postgres: ADD COLUMN resume_score FLOAT]
-                                                |
-                                         lock: RowExclusiveLock, held ~5ms
-                                         no rewrite, no rows touched
+## Indexes Need Their Own Rollout Plan
 
-[Backfill script] ----batched UPDATEs-> [Postgres: UPDATE 500 rows at a time]
-      |                                         |
-      |<------50ms pause between batches--------|
-      |                                         |
-      |                                  WAL flushed, replication catches up
-      |                                  pg_stat_activity monitored throughout
-      |
-[Migration runner] ---Phase 3a DDL----> [Postgres: ADD CONSTRAINT ... NOT VALID]
-                                                |
-                                         lock: ShareUpdateExclusiveLock, held ~10ms
-                                         new rows enforced immediately
-
-[Migration runner] ---Phase 3b DDL----> [Postgres: VALIDATE CONSTRAINT]
-                                                |
-                                         lock: ShareUpdateExclusiveLock
-                                         concurrent reads + writes allowed
-                                         table scanned row-by-row in background
-
-[Migration runner] ---Phase 3c DDL----> [Postgres: DROP CONSTRAINT]
-                                         [Postgres: SET NOT NULL]
-                                                |
-                                         lock: catalog-only, ~5ms each
-
-[Migration runner] ---Phase 4 DDL----> [Postgres: DROP COLUMN (if applicable)]
-                                                |
-                                         lock: AccessExclusiveLock, held <10ms
-                                         metadata-only, no rewrite
-```
-
-Every arrow into Postgres carries a SQL statement. Every arrow back carries an acknowledgment or error. The pause arrows in Phase 2 are deliberate time gaps: they exist to protect I/O headroom and replication lag, not because of any technical constraint.
-
-## Indexing Is the Same Problem
-
-Indexes have their own version of this trap. A naive `CREATE INDEX` locks writes for the entire build duration. Use `CONCURRENTLY`:
+A regular index build blocks writes to the table. On a busy production table, use `CREATE INDEX CONCURRENTLY` when its tradeoffs are acceptable:
 
 ```sql
--- This blocks all writes for the full build duration. Do not use on large tables.
-CREATE INDEX idx_candidates_score ON candidates (resume_score);
-
--- This runs as a background operation. Reads and writes continue.
--- Takes longer (two table scans) and cannot run inside a transaction.
-CREATE INDEX CONCURRENTLY idx_candidates_score ON candidates (resume_score);
+CREATE INDEX CONCURRENTLY candidates_review_state_created_idx
+  ON candidates (review_state, created_at DESC)
+  WHERE review_state IN ('pending', 'needs_review');
 ```
 
-If a concurrent index build fails midway, Postgres leaves an `INVALID` index behind. It takes up space and slows writes without helping any queries. Check for them:
+Concurrent index creation:
 
-```bash
-psql "$DATABASE_URL" -c "
-SELECT schemaname, tablename, indexname, indexdef
-FROM pg_indexes
-WHERE tablename = 'candidates'
-  AND indexname IN (
-    SELECT relname FROM pg_class
-    WHERE relkind = 'i' AND NOT relisvalid
-  );
-"
-```
+- allows normal inserts, updates, and deletes while the index is built;
+- performs more work and usually takes longer than a regular build;
+- cannot run inside a transaction block;
+- can leave an `INVALID` index behind if it fails;
+- permits only one concurrent index build on a table at a time.
 
-Drop any invalid indexes explicitly before retrying the concurrent build. Postgres will not do it automatically.
-
-## Principles
-
-**Staging must have production-scale data.** The original migration passed staging in 2 seconds on 3,000 rows. Production had 2.1 million. The gap between staging and production data volume is the single most reliable source of migration surprises. Restore a production snapshot to staging weekly, or at minimum run a data generator that produces at least 10% of production volume. If you cannot do either, assume every migration will behave differently in production than it did in staging.
-
-**Set a lock timeout on your migration connection.** Without it, a migration that cannot acquire a lock will wait indefinitely while requests queue up behind it. With it, the migration fails fast, your deploy reports an error, and the application keeps running:
+That means the migration framework must not blindly wrap every migration in one transaction. After a failure, inspect before retrying:
 
 ```sql
-SET lock_timeout = '3s';
-
-ALTER TABLE candidates ADD COLUMN resume_score FLOAT;
+SELECT
+  indexrelid::regclass AS index_name,
+  indisvalid,
+  indisready
+FROM pg_index
+WHERE indexrelid = 'candidates_review_state_created_idx'::regclass;
 ```
 
-Fast failure is the correct outcome when the alternative is a minutes-long lock queue that cascades into a health check failure.
+Drop an invalid artifact deliberately, then rerun the build. Do not assume the failed statement left no state behind.
 
-**One migration, one deploy does not survive large tables.** Expand-contract means at least three separate deploy cycles for a NOT NULL column add. Build that into your process. Engineers who are not aware of this will schedule migrations on the critical path of a release and be surprised when the release takes 30 minutes longer than planned.
+## Observe the Migration as a Workload
 
-**Know what your migration framework generates.** Drizzle, Prisma, and other ORMs emit different SQL depending on version and configuration. A migration that looks like `ADD COLUMN NOT NULL DEFAULT` in your schema diff might generate a table-rewriting statement or it might not. Run `EXPLAIN` on the generated SQL in a staging database with representative data before running it anywhere near production.
+A safe migration has explicit stop conditions. At minimum, watch:
 
-## Numbers
+| Signal                     | Why it matters                                         | Example stop condition                     |
+| -------------------------- | ------------------------------------------------------ | ------------------------------------------ |
+| Lock wait duration         | Detects queue formation before the app times out       | DDL exceeds the configured `lock_timeout`  |
+| Database latency           | Shows contention affecting normal traffic              | p95 exceeds the service's error budget     |
+| Replica replay lag         | Reveals WAL pressure from backfills or index builds    | Lag crosses the recovery objective         |
+| Rows changed per batch     | Confirms progress and exposes hot or skipped ranges    | Throughput collapses for several batches   |
+| Dead tuples and autovacuum | Large updates create cleanup work                      | Autovacuum falls materially behind         |
+| Error and retry rate       | Captures serialization, deadlock, and timeout pressure | Retries trend upward instead of recovering |
 
-Original approach, 2.1M row table:
+For lock diagnosis, join waiting sessions to blockers:
 
-| Metric | Value |
-|---|---|
-| Migration duration | 3m 47s |
-| Lock type held | ACCESS EXCLUSIVE |
-| p99 latency during migration | 31.4 seconds |
-| Requests queued | ~1,200 |
-| Effective downtime (health check cycling) | 4 minutes |
+```sql
+SELECT
+  waiting.pid AS waiting_pid,
+  waiting.query AS waiting_query,
+  blocker.pid AS blocker_pid,
+  blocker.query AS blocker_query,
+  now() - blocker.xact_start AS blocker_transaction_age
+FROM pg_stat_activity AS waiting
+CROSS JOIN LATERAL unnest(pg_blocking_pids(waiting.pid)) AS blocked_by(pid)
+JOIN pg_stat_activity AS blocker ON blocker.pid = blocked_by.pid;
+```
 
-Expand-contract approach, same table:
+Automated cancellation of blockers is a policy decision, not a default response. A migration tool should surface the blocking session and fail safely; operators can then decide whether cancellation is less risky than delaying the change.
 
-| Phase | Duration | Lock type | User impact |
-|---|---|---|---|
-| ADD COLUMN | 12ms | RowExclusiveLock | none |
-| Backfill (500 rows/batch, 50ms pause) | 22 minutes elapsed | none | none |
-| ADD CONSTRAINT NOT VALID | 18ms | ShareUpdateExclusiveLock | none |
-| VALIDATE CONSTRAINT | 2m 11s | ShareUpdateExclusiveLock | none |
-| SET NOT NULL | 8ms | catalog-only | none |
-| p99 during entire operation | 83ms | | baseline |
+## Common Failure Modes
 
-The backfill took 22 minutes. Users had no idea it was happening. The constraint validation took 2 minutes. p99 stayed at 83ms throughout. The migration that caused a 4-minute outage became a background operation that left nothing in the request logs.
+### Renaming a column as a single deploy
 
-That is what zero-downtime actually means. Not "we finished fast." Fast is a proxy metric. The real requirement is that user-facing latency does not move. Expand-contract achieves that by separating the work that requires locks from the work that does not, and by using the weakest lock that gets the job done.
+An old application instance still reading the previous name fails immediately. Add the new column, bridge both shapes, and remove the old one later.
+
+### Running a backfill inside the schema migration transaction
+
+The lock lifetime and data-work lifetime become coupled. Put online backfills in a resumable worker with independent commits.
+
+### Leaving a transaction open around `CREATE INDEX CONCURRENTLY`
+
+PostgreSQL rejects the command. Mark the migration as non-transactional and make retry cleanup part of the runbook.
+
+### Assuming staging predicts lock behavior
+
+Staging usually has fewer rows, shorter transactions, and lower concurrency. Rehearse against production-like volume, then test deliberate blockers and timeout behavior.
+
+### Contracting immediately after a successful deploy
+
+The database change removes the rollback path while old instances may still be draining. Wait for deployment convergence and fallback metrics to reach zero.
+
+## Production Checklist
+
+Before the change:
+
+- [ ] Confirm the exact PostgreSQL version and read the matching command documentation.
+- [ ] Record table and index size, row count, write rate, and replica topology.
+- [ ] Identify the lock mode, possible scan or rewrite, and transaction requirements.
+- [ ] Inspect long-running and idle-in-transaction sessions.
+- [ ] Set bounded `lock_timeout` and `statement_timeout` values.
+- [ ] Define rollback for the application and roll-forward for the data.
+
+During the change:
+
+- [ ] Keep expansion, backfill, validation, and contraction as separate operations.
+- [ ] Use small, committed batches with a resumable cursor or predicate.
+- [ ] Monitor lock waits, latency, replica lag, errors, WAL, and autovacuum.
+- [ ] Pause automatically when stop conditions are crossed.
+- [ ] Verify concurrent indexes are valid after creation.
+
+Before contraction:
+
+- [ ] Confirm all deployed versions use the new schema.
+- [ ] Confirm fallback reads and legacy writes are zero.
+- [ ] Verify the backfill with an independent query.
+- [ ] Validate constraints before enforcing the final invariant.
+- [ ] Schedule destructive cleanup as a separate deploy.
+
+## Takeaway
+
+Zero-downtime migration is not a special SQL syntax. It is a compatibility protocol between the database, every application version in flight, and the operators watching the rollout.
+
+The safest pattern is intentionally uneventful: add without breaking, deploy code that understands both states, backfill slowly, prove the invariant, switch traffic, and remove the old shape later. Locks and rewrites still matter, but the decisive design choice is preserving a valid state at every step.
+
+## Primary references
+
+- [PostgreSQL: `ALTER TABLE`](https://www.postgresql.org/docs/current/sql-altertable.html)
+- [PostgreSQL: explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+- [PostgreSQL: `CREATE INDEX`](https://www.postgresql.org/docs/current/sql-createindex.html)
+- [PostgreSQL: monitoring database activity](https://www.postgresql.org/docs/current/monitoring-stats.html)
