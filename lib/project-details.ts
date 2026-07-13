@@ -21,6 +21,68 @@ export interface ProjectDetail {
 }
 
 export const projectDetails: Record<string, ProjectDetail> = {
+    vaaniflow: {
+        slug: "vaaniflow",
+        vision:
+            "VaaniFlow is the open-source project behind Vaani, a Windows tray app for speaking directly into the field already under the cursor. Hold a global shortcut, speak naturally, and release to insert the transcript, with optional cleanup, writing styles, dictionary terms, snippets, and searchable local history.",
+        goals: [
+            "Make voice input available across Windows apps without forcing users into a separate editor or transcription workspace.",
+            "Keep the core interaction short: hold a shortcut, speak, release, and receive usable text at the cursor.",
+            "Let users bring their own Azure OpenAI Whisper deployment while keeping settings, credentials, history, and personal data local.",
+            "Support optional AI cleanup, app-aware writing styles, personal dictionary terms, reusable snippets, and voice commands.",
+        ],
+        challenges: [
+            {
+                title: "Writing into the app already open",
+                problem:
+                    "A dictation tool loses its advantage if users have to switch windows, copy a transcript, and return to the original task.",
+                approach:
+                    "Built Vaani as a system-tray Electron app around a global shortcut and cursor-first insertion flow, including behavior suited to messages, documents, browsers, forms, and terminals.",
+                outcome:
+                    "Voice input stays inside the user's existing workflow instead of becoming another destination app.",
+            },
+            {
+                title: "Longer recordings without a stalled workflow",
+                problem:
+                    "Long dictation sessions can become slow and fragile when the entire recording is treated as one transcription request.",
+                approach:
+                    "Added background chunking for longer recordings while keeping push-to-talk and hands-free modes centered on the same simple interaction.",
+                outcome:
+                    "Vaani can support quick phrases and longer thoughts without changing how the user starts dictating.",
+            },
+            {
+                title: "A clear privacy boundary",
+                problem:
+                    "Voice tools handle audio, transcripts, credentials, writing history, and personal vocabulary, so vague data ownership quickly damages trust.",
+                approach:
+                    "Removed the need for a VaaniFlow account or sync service, stored app data locally, and routed speech and optional cleanup directly through the Azure OpenAI deployments configured by the user.",
+                outcome:
+                    "The product has an understandable boundary: local app data, user-controlled provider requests, and no hosted VaaniFlow subscription.",
+            },
+        ],
+        learnings: [
+            "The best desktop utilities disappear into the workflow instead of asking users to reorganize around them.",
+            "Voice-to-text becomes much more useful when correction, vocabulary, snippets, and output style are treated as one system.",
+            "Local-first architecture is strongest when the interface explains exactly what stays local and what reaches a configured provider.",
+        ],
+        vlog: [
+            {
+                date: "Build note 01",
+                title: "The cursor became the destination",
+                body: "The defining product decision was to return text to the field already open. That kept dictation attached to the user's task instead of creating a separate transcription workflow.",
+            },
+            {
+                date: "Build note 02",
+                title: "The transcript needed context",
+                body: "Cleanup, writing styles, dictionary terms, snippets, and voice commands turned raw speech recognition into text that was closer to ready for use.",
+            },
+            {
+                date: "Build note 03",
+                title: "Privacy needed a visible model",
+                body: "Keeping settings and history local was only part of the job. The product also had to show when audio or text was sent to the user's configured Azure deployment.",
+            },
+        ],
+    },
     devresume: {
         slug: "devresume",
         vision:

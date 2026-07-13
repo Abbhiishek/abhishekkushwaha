@@ -7,7 +7,7 @@ import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
-import { BarChart3, FileText, ImageIcon, Link2, Lock, QrCode, Scissors, ShieldCheck, Zap } from "lucide-react"
+import { BarChart3, FileText, ImageIcon, Link2, Lock, Mic, PenLine, QrCode, Scissors, ShieldCheck, Zap } from "lucide-react"
 import Image from "next/image"
 
 interface Props {
@@ -23,6 +23,31 @@ const utilityHighlights: Record<
         features: { title: string; body: string; icon: React.ReactNode }[]
     }
 > = {
+    vaaniflow: {
+        eyebrow: "Windows voice workflow",
+        metrics: [
+            { value: "Win", label: "system-wide" },
+            { value: "Local", label: "app data" },
+            { value: "MIT", label: "open source" },
+        ],
+        features: [
+            {
+                title: "Dictate anywhere",
+                body: "Hold a global shortcut, speak in the Windows app already open, and release to insert text at the cursor.",
+                icon: <Mic size={18} />,
+            },
+            {
+                title: "Shape the transcript",
+                body: "Optionally clean up speech, apply app-aware writing styles, and expand saved dictionary terms or snippets.",
+                icon: <PenLine size={18} />,
+            },
+            {
+                title: "Keep control",
+                body: "Store settings and history locally while sending provider requests to the Azure OpenAI deployments you configure.",
+                icon: <ShieldCheck size={18} />,
+            },
+        ],
+    },
     "pdf-kabootr": {
         eyebrow: "Local PDF workspace",
         metrics: [
