@@ -152,7 +152,12 @@ function ProjectCard({ project }: { project: Project }) {
           src={project.image}
           alt={project.title}
           fill
-          className="object-cover saturate-125 contrast-105 transition-transform duration-500 group-hover:scale-105"
+          className={cn(
+            'transition-transform duration-500 group-hover:scale-105',
+            project.slug === 'nuvyam'
+              ? 'object-contain bg-[#080d1c]'
+              : 'object-cover saturate-125 contrast-105'
+          )}
         />
         <div
           aria-hidden
