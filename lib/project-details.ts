@@ -21,6 +21,66 @@ export interface ProjectDetail {
 }
 
 export const projectDetails: Record<string, ProjectDetail> = {
+    nuvyam: {
+        slug: "nuvyam",
+        vision: "Nuvyam is a Windows desktop workspace for running coding agents in parallel without letting their changes, terminals, or context blur together. Every task starts on its own Git branch and worktree, then keeps its agent session, files, diffs, commits, pushes, pull requests, and resource usage attached to that task until the work is ready to move forward.",
+        goals: [
+            "Make parallel agent work safe by giving every task a dedicated branch and Git worktree.",
+            "Bring installed coding-agent CLIs into one desktop workspace while still supporting custom command-based agents.",
+            "Keep terminals, files, diffs, commits, pushes, and pull requests together so review happens in the context of the task.",
+            "Put reusable Skills, saved prompts, MCP servers, appearance controls, and process-level resource monitoring close to active work.",
+        ],
+        challenges: [
+            {
+                title: "Parallel work without collisions",
+                problem:
+                    "Running several coding agents against one checkout makes branches, uncommitted files, and task ownership difficult to reason about.",
+                approach:
+                    "Nuvyam creates a dedicated Git branch and worktree for every task, making isolation the default unit of work instead of an advanced setup step.",
+                outcome: "Agents can work side by side while each task keeps a clear filesystem and Git boundary.",
+            },
+            {
+                title: "A workspace that respects agent CLIs",
+                problem:
+                    "Coding agents have different commands and interaction models, and wrapping them too tightly can remove the terminal behavior developers rely on.",
+                approach:
+                    "Nuvyam detects supported agent CLIs already installed on Windows, runs built-in and custom commands in real PTYs, and lets users enable the agents they actually use.",
+                outcome:
+                    "Claude Code, Codex, Gemini, OpenCode, Cursor, Copilot, Pi, and custom agents can share one workspace without pretending they are the same tool.",
+            },
+            {
+                title: "Keeping review attached to the task",
+                problem:
+                    "Agent output is harder to trust when the terminal session, changed files, Git history, and pull-request flow live in separate surfaces.",
+                approach:
+                    "Files, diffs, commits, pushes, and pull requests stay with the task, alongside reusable Skills, saved prompts, MCP integrations, and a resource view for active processes.",
+                outcome:
+                    "The path from prompt to reviewed change remains visible in one place, including what each active task is consuming.",
+            },
+        ],
+        learnings: [
+            "Task isolation is the foundation for trustworthy parallel agent workflows, not an optional power-user feature.",
+            "Agent orchestration works better when the product preserves real terminal behavior and tool-specific strengths.",
+            "Review context, reusable capabilities, and resource visibility matter as much as starting another agent session.",
+        ],
+        vlog: [
+            {
+                date: "Build note 01",
+                title: "The task became the container",
+                body: "Branch, worktree, terminal, files, review state, and resource usage all needed one shared boundary. Treating the task as that container made the rest of the product easier to reason about.",
+            },
+            {
+                date: "Build note 02",
+                title: "Agents stayed native",
+                body: "The workspace coordinates agent CLIs without flattening them into a generic chat box. Real PTYs and custom commands keep each tool's normal workflow intact.",
+            },
+            {
+                date: "Build note 03",
+                title: "Starting work was only half the loop",
+                body: "The product expanded beyond launching agents to include Skills, prompts, MCP servers, contextual diffs, Git operations, pull requests, and process monitoring around the work they produce.",
+            },
+        ],
+    },
     vaaniflow: {
         slug: "vaaniflow",
         vision:

@@ -7,7 +7,22 @@ import type { ProjectDetail } from "@/lib/project-details"
 import type { Project } from "@/lib/types"
 import { cn } from "@/utils/cn"
 import { adlam_display } from "@/utils/font"
-import { BarChart3, FileText, ImageIcon, Link2, Lock, Mic, PenLine, QrCode, Scissors, ShieldCheck, Zap } from "lucide-react"
+import {
+    BarChart3,
+    FileText,
+    GitBranch,
+    GitPullRequest,
+    ImageIcon,
+    Link2,
+    Lock,
+    Mic,
+    PenLine,
+    QrCode,
+    Scissors,
+    ShieldCheck,
+    TerminalSquare,
+    Zap,
+} from "lucide-react"
 import Image from "next/image"
 
 interface Props {
@@ -23,6 +38,31 @@ const utilityHighlights: Record<
         features: { title: string; body: string; icon: React.ReactNode }[]
     }
 > = {
+    nuvyam: {
+        eyebrow: "Desktop workspace for coding agents",
+        metrics: [
+            { value: "7+", label: "agent CLIs" },
+            { value: "1/task", label: "Git worktree" },
+            { value: "Win", label: "desktop app" },
+        ],
+        features: [
+            {
+                title: "Isolate every task",
+                body: "Start each piece of work on its own Git branch and worktree so parallel agents do not compete for one checkout.",
+                icon: <GitBranch size={18} />,
+            },
+            {
+                title: "Run agents natively",
+                body: "Use supported or custom coding-agent commands in real PTYs, with Skills, prompts, and MCP servers nearby.",
+                icon: <TerminalSquare size={18} />,
+            },
+            {
+                title: "Review and ship in context",
+                body: "Keep files, diffs, commits, pushes, pull requests, and process-level resource use attached to the task.",
+                icon: <GitPullRequest size={18} />,
+            },
+        ],
+    },
     vaaniflow: {
         eyebrow: "Windows voice workflow",
         metrics: [
@@ -191,7 +231,13 @@ export default function UtilityProductLayout({ project, detail }: Props) {
 
             <FadeInView>
                 <div className="relative w-full rounded-2xl overflow-hidden ring-1 ring-zinc-200 dark:ring-zinc-800 bg-zinc-100 dark:bg-zinc-900 aspect-[3/2] sm:aspect-[16/9]">
-                    <Image src={project.image} alt={`${project.title} product screenshot`} fill className="object-cover" priority />
+                    <Image
+                        src={project.image}
+                        alt={`${project.title} product screenshot`}
+                        fill
+                        className={cn(project.slug === "nuvyam" ? "object-contain bg-[#080d1c]" : "object-cover")}
+                        priority
+                    />
                 </div>
             </FadeInView>
 

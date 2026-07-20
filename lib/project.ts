@@ -2,6 +2,22 @@ import type { Project } from "./types"
 
 export const projects: Project[] = [
     {
+        slug: "nuvyam",
+        title: "Nuvyam",
+        tagline: "A Windows workspace for running coding agents in parallel.",
+        description:
+            "A desktop control center that gives every coding-agent task its own Git branch and worktree, with agent-native terminals, contextual review, reusable Skills and MCP servers, and per-task resource monitoring.",
+        judgment: "Agent workspace - isolated parallel software development",
+        stack: ["Windows", "Git Worktrees", "Agent CLIs", "PTY", "MCP"],
+        image: "/nuvyam-banner.png",
+        accent: "amber",
+        layout: "utility-product",
+        status: "shipped",
+        period: "2026",
+        liveUrl: "https://nuvyam.com/",
+        featured: true,
+    },
+    {
         slug: "vaaniflow",
         title: "VaaniFlow",
         tagline: "System-wide voice dictation for Windows.",
